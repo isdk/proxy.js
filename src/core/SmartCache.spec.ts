@@ -124,4 +124,35 @@ describe('SmartCache', () => {
     const readStream = cache.getStream(key);
     expect(await consumeBody(readStream)).toBe('stream data');
   });
+
+  it('内存总量限制：当达到 maxTotalMemorySize 时应按 LRU 顺序剔除旧数据', async () => {
+    // 假设 maxTotalMemorySize 为 2048 (2KB)
+    // 我们的 Meta 估算是 512B，Body 为 512B，则每个 Entry 约 1024B
+    const limitedCache = new SmartCache({
+      storagePath: path.join(storagePath, 'limit-test'),
+      maxTotalMemorySize: 2500, // 约容纳 2 个 Entry
+      maxMemorySize: 1000       // 允许 Body 进入内存
+    });
+
+    const meta = { ...mockMetadata, timestamp: Date.now() };
+
+    // 1. 存入第一个
+    await limitedCache.set('key1', Buffer.alloc(512), meta);
+    // 2. 存入第二个
+    await limitedCache.set('key2', Buffer.alloc(512), meta);
+
+    // 验证两者都在内存 (利用 delete 磁盘后依然能 get 到的特性)
+    await fs.rm(path.join(storagePath, 'limit-test'), { recursive: true, force: true });
+    expect(await limitedCache.get('key1')).not.toBeNull();
+    expect(await limitedCache.get('key2')).not.toBeNull();
+
+    // 3. 存入第三个，此时应触发 LRU 淘汰 key1
+    await limitedCache.set('key3', Buffer.alloc(512), meta);
+
+    // key1 应该已被内存剔除（因为磁盘已删，内存没有就返回 null 或报错）
+    // 注意：SmartCache.get 在内存未命中时会尝试读磁盘，磁盘已删则返回 null
+    expect(await limitedCache.get('key1')).toBeNull();
+    expect(await limitedCache.get('key2')).not.toBeNull();
+    expect(await limitedCache.get('key3')).not.toBeNull();
+  });
 });

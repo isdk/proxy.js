@@ -1,4 +1,4 @@
-import { KeyvCacheableMemory, type KeyvCacheableMemoryOptions } from '@cacheable/memory';
+import { LRUCache } from 'secondary-cache';
 import cacache from 'cacache';
 import os from 'os';
 import path from 'path';
@@ -12,8 +12,15 @@ export interface SmartCacheOptions {
   storagePath?: string;
   /** 内存缓存阈值（字节）。响应体大小超过此值时，Body 将只存入磁盘，而 Meta 仍保留在内存。默认 1MB。 */
   maxMemorySize?: number;
-  /** 透传给 L1 (Memory) 的高级配置 */
-  memoryOptions?: Partial<KeyvCacheableMemoryOptions>;
+  /** 内存缓存总大小阈值（字节）。默认 100MB。超过此值将清空内存缓存。 */
+  maxTotalMemorySize?: number;
+  /** 透传给 L1 (Memory) 的高级配置 (secondary-cache LRUCache options) */
+  memoryOptions?: {
+    capacity?: number;
+    expires?: number;
+    cleanInterval?: number;
+    [key: string]: any;
+  };
 }
 
 /**
@@ -22,25 +29,39 @@ export interface SmartCacheOptions {
  * 该类实现了 L1 (内存) 和 L2 (磁盘) 的双层混合存储架构，旨在提供高性能且大容量的缓存能力。
  *
  * ### 核心特性：
- * - **双层架构**: L1 使用 LRU 内存缓存（基于 `@cacheable/memory`），L2 使用持久化磁盘缓存（基于 `cacache`）。
+ * - **双层架构**: L1 使用 LRU 内存缓存（基于 `secondary-cache` 的 LRUCache），L2 使用持久化磁盘缓存（基于 `cacache`）。
  * - **大小感知存储**: 自动识别响应体大小。小于阈值的文件同时存于内存和磁盘；超过阈值的文件仅存于磁盘，但其元数据仍保留在内存中。
  * - **元数据驻留 (Meta-Residency)**: 无论 Body 多大，Headers、Status、Policy 等信息始终优先从内存读取，确保缓存判定性能。
  * - **流式支持**: 支持通过 `setStream` 和 `getStream` 直接操作大数据流，防止 OOM。
  * - **一致性保障**: 在并发写入时自动清理内存，确保后续读取不会拿到被污染的旧数据。
+ * - **内存限制**: 通过 `maxTotalMemorySize` 控制 L1 缓存的总内存占用。
  */
 export class SmartCache {
-  private memory: KeyvCacheableMemory;
+  private memory: LRUCache;
   private storagePath: string;
   private maxMemorySize: number;
 
   constructor(options: SmartCacheOptions = {}) {
     this.storagePath = options.storagePath || path.join(os.tmpdir(), 'isdk-proxy-cache');
     this.maxMemorySize = options.maxMemorySize ?? 1024 * 1024;
-    this.memory = new KeyvCacheableMemory({
-      lruSize: 500,
-      ttl: 5 * 60 * 1000,
+    
+    const maxTotalMemorySize = options.maxTotalMemorySize || 100 * 1024 * 1024; // 100MB
+    const memoryOptions = {
+      capacity: 0, // 仅通过权重(Size)限制，不限制数量
+      expires: 5 * 60 * 1000,
+      maxWeight: maxTotalMemorySize,
+      weightOf: (val: any) => {
+        let s = 0;
+        if (val.body && Buffer.isBuffer(val.body)) {
+          s += val.body.length;
+        }
+        // 粗略估计元数据大小
+        s += 512; 
+        return s;
+      },
       ...options.memoryOptions,
-    });
+    };
+    this.memory = new LRUCache(memoryOptions);
   }
 
   /**
@@ -56,7 +77,7 @@ export class SmartCache {
    * @returns 完整的缓存条目（带 Buffer 或 Stream 的 Body），未命中返回 null
    */
   async get(key: string): Promise<CacheEntry | null> {
-    const memEntry = await this.memory.get(key) as (Partial<CacheEntry> & CacheMetadata) | undefined;
+    const memEntry = this.memory.get(key) as (Partial<CacheEntry> & CacheMetadata) | undefined;
 
     if (memEntry) {
       if (memEntry.body) {
@@ -82,13 +103,13 @@ export class SmartCache {
         const { data, metadata } = await cacache.get(this.storagePath, key);
         const castedMeta = metadata as unknown as CacheMetadata;
         const entry: CacheEntry = { ...castedMeta, body: data };
-        await this.saveToMemory(key, data, castedMeta);
+        this.saveToMemory(key, data, castedMeta);
         return entry;
       } else {
         // 大文件：读取 Meta 后返回流
         const info = await cacache.get.info(this.storagePath, key);
         const castedMeta = info!.metadata as unknown as CacheMetadata;
-        await this.saveToMemory(key, null as any, castedMeta);
+        this.saveToMemory(key, null as any, castedMeta);
         return { ...castedMeta, body: cacache.get.stream(this.storagePath, key) };
       }
     } catch (error) {
@@ -112,18 +133,18 @@ export class SmartCache {
     };
 
     await cacache.put(this.storagePath, key, body, { metadata: fullMeta });
-    await this.saveToMemory(key, body, fullMeta);
+    this.saveToMemory(key, body, fullMeta);
   }
 
   /**
    * 内部方法：处理内存回填
    */
-  private async saveToMemory(key: string, body: Buffer, metadata: CacheMetadata): Promise<void> {
+  private saveToMemory(key: string, body: Buffer, metadata: CacheMetadata): void {
     if (body && body.length > 0 && body.length <= this.maxMemorySize) {
-      await this.memory.set(key, { ...metadata, body });
+      this.memory.set(key, { ...metadata, body });
     } else {
       const { ...metaOnly } = metadata;
-      await this.memory.set(key, metaOnly);
+      this.memory.set(key, metaOnly);
     }
   }
 
@@ -153,24 +174,25 @@ export class SmartCache {
    */
   setStream(key: string, metadata: Omit<CacheMetadata, 'size'>): NodeJS.WritableStream {
     // 乐观清除内存缓存，防止磁盘更新后内存仍然返回旧数据
-    this.memory.delete(key).catch(() => { });
+    this.memory.del(key);
     const stream = cacache.put.stream(this.storagePath, key, { metadata });
     
     // 关键修复：流写入完成后再次清理内存，防止写入期间被其他并发读取回填了旧数据
     stream.on('finish', () => {
-      this.memory.delete(key).catch(() => { });
+      this.memory.del(key);
     });
     
     return stream as unknown as NodeJS.WritableStream;
   }
 
   async delete(key: string): Promise<void> {
-    await this.memory.delete(key);
+    this.memory.del(key);
     await cacache.rm.entry(this.storagePath, key);
   }
 
   async clear(): Promise<void> {
-    await this.memory.clear();
+    this.memory.clear();
     await cacache.rm.all(this.storagePath);
   }
 }
+
