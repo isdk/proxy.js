@@ -43,7 +43,7 @@ const cache = new SmartCache({
 // 2. 创建一个预配置的缓存 Fetcher (内部会自动防缓存击穿)
 const myFetch = createCachedFetch({
   cache,
-  config: { 
+  config: {
     staleIfError: true,
     forceCache: false // 设置为 true 可无视 no-store 强制缓存一切，适用于离线应用
   },
@@ -87,7 +87,7 @@ const data = await response.json();
 3. 网络请求完成后，自动更新 L1 和 L2 缓存。
 
 ## API 参考
- 
+
 ### `createCachedFetch(options)` (强烈推荐)
 
 面向终端用户的高阶工厂函数。它会自动在内部闭包中维护并发追踪器，为你生成一个开箱即用、绝不会发生缓存击穿的 Fetch 实例。
@@ -97,13 +97,15 @@ const data = await response.json();
   - `staleIfError` (boolean): 网络请求失败时，是否强制返回本地过期的旧缓存以保障可用性。
   - `forceCache` (boolean): 是否无视源站的 `Cache-Control: no-store` 指令强制执行缓存入盘。适用于极端弱网或离线优先的应用场景。
 - **`options.backgroundUpdate`**: 设置为 `true` 以开启 SWR (Stale-While-Revalidate) 行为。
+- **`options.activeCacheWrites`**: 可选参数。一个 `Map<string, Promise<void>>`，用于在多个 `createCachedFetch` 实例之间共享并发追踪状态，实现应用级别的缓存击穿防护。
 - **返回值**: 一个可随处调用的 `(request: Request, fetcher: (req: Request) => Promise<Response>) => Promise<Response>` 包装函数。
 
-### `createFetchWithCache()`
+### `createFetchWithCache(activeCacheWrites?)`
 
 单一职责的高阶函数。专门用于封装和隔离 `activeCacheWrites` 并发追踪器。
 它会返回一个绑定了闭包内 Map 的 `fetchWithCache` 变体函数。如果你正在构建中间件，但又不想使用顶层的 `createCachedFetch` 工厂，可以用它来免除手动维护追踪器的烦恼。
 
+- **`activeCacheWrites`**: 可选参数。外部传入的 `Map<string, Promise<void>>` 作为并发追踪器。如果不提供，将自动创建一个新的内部 Map。在多个实例间共享同一个 Map 可以实现应用范围内的请求合并。
 - **返回值**: `(request: Request, fetcher: (req: Request) => Promise<Response>, options: Omit<FetchWithCacheOptions, 'activeCacheWrites'>) => Promise<Response>`
 
 ### `fetchWithCache(request, fetcher, options)`
@@ -112,7 +114,7 @@ const data = await response.json();
 
 - **`request`**: Web 标准的 `Request` 对象。
 - **`fetcher`**: 发起真实网络请求的回调函数 `(req: Request) => Promise<Response>`。
-- **`options.activeCacheWrites`**: 必须由**外部传入**的一个 `Map<string, Promise<void>>`，用于在多个并发的 `fetchWithCache` 调用间共享锁状态，以实现请求合并。如果你不想自己维护它，请使用 `createCachedFetch`。
+- **`options.activeCacheWrites`**: 必须由**外部传入**的一个 `Map<string, Promise<void>>`，用于在多个并发的 `fetchWithCache` 调用间共享锁状态，以实现请求合并。如果你不想自己维护它，请使用 `createCachedFetch` 或 `createFetchWithCache`。
 
 ### `SmartCache`
 
@@ -125,6 +127,7 @@ const data = await response.json();
 ### 缓存状态标头 (Cache Status Headers)
 
 由 `@isdk/proxy` 处理并返回的所有 `Response`，其 Headers 中都会注入 `x-proxy-cache` 字段以便观测生命周期，可能的值有：
+
 - `HIT`: 完美命中，数据完全来自于 L1 内存或 L2 磁盘缓存。
 - `MISS`: 缓存未命中（或主动绕过缓存），数据真实来自于源站请求。
 - `STALE`: 命中过期缓存（已通过 SWR 机制在后台发起了静默网络更新）。

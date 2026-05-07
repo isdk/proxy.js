@@ -45,7 +45,7 @@ const cache = new SmartCache({
 // 2. Create a pre-configured cached fetcher (automatically tracks concurrent requests)
 const myFetch = createCachedFetch({
   cache,
-  config: { 
+  config: {
     staleIfError: true,
     forceCache: false // Set to true to cache everything (ignore no-store) for offline-first apps
   },
@@ -90,12 +90,14 @@ A higher-order factory function designed for end-users. It creates a pre-configu
   - `staleIfError` (boolean): Serve stale cache if the network fails.
   - `forceCache` (boolean): Force cache everything, ignoring `Cache-Control: no-store`. Ideal for offline-first resilience.
 - **`options.backgroundUpdate`**: Set to `true` to enable SWR behavior.
+- **`options.activeCacheWrites`**: Optional. A `Map<string, Promise<void>>` that can be shared across multiple `createCachedFetch` instances to enable application-level cache stampede prevention.
 - **Returns**: A reusable `(request: Request, fetcher: (req: Request) => Promise<Response>) => Promise<Response>` function.
 
-### `createFetchWithCache()`
+### `createFetchWithCache(activeCacheWrites?)`
 
 A single-responsibility higher-order function that encapsulates the `activeCacheWrites` concurrency tracker. It returns a variant of `fetchWithCache` that shares an internal Map to coalesce identical concurrent requests. Use this if you are building an intermediate wrapper but don't want to rely on the top-level `createCachedFetch` factory.
 
+- **`activeCacheWrites`**: Optional. An external `Map<string, Promise<void>>` to be used as the concurrency tracker. If not provided, a new internal Map will be created. Sharing the same Map across multiple instances enables application-wide request coalescing.
 - **Returns**: `(request: Request, fetcher: (req: Request) => Promise<Response>, options: Omit<FetchWithCacheOptions, 'activeCacheWrites'>) => Promise<Response>`
 
 ### `fetchWithCache(request, fetcher, options)`
@@ -104,7 +106,7 @@ The core caching orchestrator. Use this directly if you need low-level control o
 
 - **`request`**: Web Standard `Request`.
 - **`fetcher`**: The raw fetching callback `(req: Request) => Promise<Response>`.
-- **`options.activeCacheWrites`**: A `Map<string, Promise<void>>` that YOU must provide and maintain to coalesce concurrent requests. (If you don't want to manage this, use `createCachedFetch` instead).
+- **`options.activeCacheWrites`**: A `Map<string, Promise<void>>` that YOU must provide and maintain to coalesce concurrent requests. (If you don't want to manage this, use `createCachedFetch` or `createFetchWithCache` instead).
 
 ### `SmartCache`
 
