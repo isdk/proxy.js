@@ -11,18 +11,63 @@ export interface KeyFilterConfig {
 }
 
 /**
+ * 精细化缓存匹配规则
+ *
+ * 用于在 `methods` 过滤的基础上，进一步限定哪些具体的请求路径或参数需要被缓存。
+ * 多个规则之间是 **OR (逻辑或)** 关系，即请求只需匹配其中一条规则即可。
+ * 在单个规则对象内部，各字段之间是 **AND (逻辑与)** 关系。
+ */
+export interface CacheRule {
+  /** 
+   * 匹配的方法 (如 "POST")。
+   * 如果指定，则必须方法完全一致；如果不指定，则匹配所有 `methods` 中允许的方法。
+   */
+  method?: string;
+  /** 
+   * 路径前缀匹配 (如 "/api/")。
+   * 检查 `url.pathname` 是否以此字符串开头。
+   */
+  path?: string;
+  /** 
+   * Query 参数匹配规则。
+   * - 字符串: 要求该参数的值与给定字符串完全相等。
+   * - `true`: 要求该参数必须存在于 URL 中。
+   * - `false`: 要求该参数必须 **不** 存在于 URL 中。
+   */
+  query?: Record<string, string | boolean>;
+}
+
+/**
  * 站点级缓存配置
  */
 export interface SiteCacheConfig {
-  /** Query 参数过滤配置 */
+  /** 
+   * 允许缓存的 HTTP 方法列表。
+   * 默认值: ['GET', 'HEAD']。
+   * 若要缓存 POST/PUT，必须在此显式添加，并确保后端响应满足缓存条件（或开启 `forceCache`）。
+   */
+  methods?: string[];
+  /** 
+   * 精细化缓存规则列表。
+   * 如果配置了此项，请求必须匹配其中至少一条规则才会被允许进入缓存流程。
+   * 适用于只希望缓存特定 API 接口的场景。
+   */
+  cacheRules?: CacheRule[];
+  /** Query 参数过滤配置：决定哪些查询参数参与缓存指纹 (Cache Key) 的计算 */
   query?: KeyFilterConfig;
-  /** 请求头过滤配置 */
+  /** 请求头过滤配置：决定哪些 Header 参与缓存指纹计算 */
   headers?: KeyFilterConfig;
-  /** Cookie 过滤配置 */
+  /** Cookie 过滤配置：决定哪些 Cookie 字段参与缓存指纹计算 */
   cookies?: KeyFilterConfig;
-  /** 当后端请求失败且存在旧缓存时，是否强制返回旧缓存（容错机制） */
+  /** 
+   * 请求体过滤配置 (仅限 JSON 类型)。
+   * 当方法为 POST/PUT/PATCH 且为 JSON 格式时，用于从 Body 中提取特定字段参与指纹计算。
+   * 能够有效过滤掉 Body 中的随机数或时间戳，提高缓存命中率。
+   */
+  body?: KeyFilterConfig;
+  /** 容错机制：当后端请求失败（网络错误或 5xx）且存在旧缓存时，是否强制返回旧缓存 */
   staleIfError?: boolean;
-  /** 是否强制缓存一切响应（无视 no-store 等不缓存指令），用于极端的离线可用容错场景 */
+  /** 强制缓存：是否忽略 `Cache-Control: no-store` 等指令强制入库。适用于离线优先或对响应头不可控的场景。 */
   forceCache?: boolean;
 }
 

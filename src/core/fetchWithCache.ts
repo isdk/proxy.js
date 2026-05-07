@@ -65,15 +65,15 @@ function buildResponseFromCache(entry: CacheEntry, cacheStatus: string): Respons
 }
 
 /**
- * 构建上下文对象
+ * 构建上下文对象 (异步)
  */
-function buildFetchWithCacheContext(
+async function buildFetchWithCacheContext(
   request: Request,
   fetcher: (req: Request) => Promise<Response>,
   options: FetchWithCacheOptions
-): FetchWithCacheContext {
+): Promise<FetchWithCacheContext> {
   const genKey = options.generateKey || generateCacheKey;
-  const cacheKey = genKey(request, options.config);
+  const cacheKey = await genKey(request, options.config);
   return {
     ...options,
     request,
@@ -81,6 +81,67 @@ function buildFetchWithCacheContext(
     cacheKey,
     activeCacheWrites: options.activeCacheWrites || new Map<string, Promise<void>>()
   };
+}
+
+/**
+ * 判断当前请求是否满足可缓存的基础条件
+ *
+ * 该函数执行两阶段过滤：
+ * 1. **方法过滤**: 检查请求方法是否在 `allowedMethods` 配置列表中（默认为 GET, HEAD）。
+ * 2. **规则过滤**: 如果配置了 `cacheRules`，请求必须匹配其中至少一条规则。
+ *    - 支持路径前缀匹配 (`path`)。
+ *    - 支持方法精确匹配 (`method`)。
+ *    - 支持复杂的查询参数匹配 (`query`)，包括全等匹配、必须存在(true)及必须不存在(false)。
+ *
+ * @param request - 原始 Web 标准 Request 对象
+ * @param config - 站点级缓存配置
+ * @returns 如果请求允许进入缓存流程则返回 true，否则返回 false 直接穿透至源站
+ */
+function isCacheable(request: Request, config: SiteCacheConfig): boolean {
+  const method = request.method.toUpperCase();
+  const allowedMethods = config.methods || ['GET', 'HEAD'];
+
+  // 1. 检查方法是否在允许列表中
+  if (!allowedMethods.includes(method)) {
+    return false;
+  }
+
+  // 2. 如果配置了 cacheRules，则必须至少匹配其中一条
+  if (config.cacheRules && config.cacheRules.length > 0) {
+    const url = new URL(request.url);
+    const searchParams = url.searchParams;
+
+    return config.cacheRules.some(rule => {
+      // 匹配方法 (如果 rule 指定了方法)
+      if (rule.method && rule.method.toUpperCase() !== method) {
+        return false;
+      }
+
+      // 匹配路径 (前缀匹配)
+      if (rule.path && !url.pathname.startsWith(rule.path)) {
+        return false;
+      }
+
+      // 匹配 Query 参数
+      if (rule.query) {
+        for (const [key, value] of Object.entries(rule.query)) {
+          const hasParam = searchParams.has(key);
+          const paramValue = searchParams.get(key);
+
+          if (typeof value === 'boolean') {
+            if (value && !hasParam) return false;
+            if (!value && hasParam) return false;
+          } else if (typeof value === 'string') {
+            if (paramValue !== value) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }
+
+  return true;
 }
 
 /**
@@ -234,20 +295,32 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
  * 核心协调函数 (Fetcher Orchestrator)
  *
  * 实现了基于流的混合缓存代理核心逻辑，主要机制包括：
+ * - **多方法支持与过滤**：支持通过 `allowedMethods` 配置可缓存的方法（如 POST, PUT），并通过 `cacheRules` 进行精细化的路径与参数匹配拦截。
+ * - **异步 Request Body 处理**：当缓存 POST/PUT 请求时，会自动读取 Body 并计算唯一指纹（支持 JSON 字段过滤）。
  * - **大文件流式处理**：底层完全通过 Streams 实现，代理大文件时自动写入磁盘且防 OOM。
  * - **SWR (Stale-While-Revalidate)**：后台静默更新机制。
  * - **并发防击穿 (Request Coalescing)**：利用 `activeCacheWrites` 将并发请求合并。
  * - **强制离线容灾**：支持 `staleIfError` 和 `forceCache`（无视 Cache-Control 强制入库）。
  *
  * 并且会在响应头中自动注入 `x-proxy-cache` 标明缓存命中状态 (`HIT`, `STALE`, `MISS`, `STALE_IF_ERROR`)。
+ *
+ * @param request - 原始 Web 标准 Request 对象
+ * @param fetcher - 实际执行网络请求的函数
+ * @param options - 缓存配置选项
+ * @returns 带有缓存标识头和流式 Body 的 Response 对象
  */
 export async function fetchWithCache(
   request: Request,
   fetcher: (req: Request) => Promise<Response>,
   options: FetchWithCacheOptions
 ): Promise<Response> {
+  // 0. 判断当前请求是否允许缓存
+  if (!isCacheable(request, options.config)) {
+    return fetcher(request);
+  }
+
   // 1. 初始化统一上下文
-  const ctx = buildFetchWithCacheContext(request, fetcher, options);
+  const ctx = await buildFetchWithCacheContext(request, fetcher, options);
 
   // 2. 尝试读取现有缓存
   const cachedEntry = await ctx.cache.get(ctx.cacheKey);

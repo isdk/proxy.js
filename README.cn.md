@@ -13,6 +13,8 @@
 ## 核心特性
 
 - **🚀 混合多级缓存**: L1 (LRU 内存) 提供极速响应，L2 (内容寻址磁盘 `cacache`) 提供持久化存储。
+- **📥 HTTP POST & 多方法支持**: 完整支持 POST、PUT 等非 GET 方法的缓存，内置智能请求体指纹计算机制。
+- **🎯 精细化规则拦截**: 支持通过 `cacheRules` 对特定路径或 Query 参数进行外科手术式的精确缓存控制。
 - **🌊 原生流式分发**: 内部完全基于 Stream 管道化构建，在代理大文件时天然防 OOM 内存溢出。
 - **🧠 智能元数据驻留**: 无论文件多大，元数据 (Headers, Status, Policy) 始终驻留在内存中，确保纳秒级的缓存策略判定。
 - **🔄 过期后异步更新 (SWR)**: 立即返回过期数据，同时在后台静默更新缓存，实现“零等待”响应。
@@ -31,6 +33,8 @@ pnpm add @isdk/proxy
 
 使用 `@isdk/proxy` 的主要方式是通过 `fetchWithCache` 函数，它可以包装任何 HTTP 请求逻辑。
 
+### 基础用法 (GET 请求)
+
 ```typescript
 import { SmartCache, createCachedFetch } from '@isdk/proxy';
 
@@ -40,23 +44,57 @@ const cache = new SmartCache({
   maxMemorySize: 1024 * 1024 // 内存阈值 1MB
 });
 
-// 2. 创建一个预配置的缓存 Fetcher (内部会自动防缓存击穿)
+// 2. 创建一个预配置的缓存 Fetcher
 const myFetch = createCachedFetch({
   cache,
   config: {
     staleIfError: true,
-    forceCache: false // 设置为 true 可无视 no-store 强制缓存一切，适用于离线应用
   },
   backgroundUpdate: true // 开启 SWR (过期后后台静默更新)
 });
 
-// 3. 在应用的任何地方愉快地使用它！
-const request = new Request('https://api.example.com/data');
-const response = await myFetch(request, (req) => fetch(req)); // 传入任何返回 Promise<Response> 的获取函数
-
-console.log(response.headers.get('x-proxy-cache')); // 输出: "MISS", "HIT", "STALE" 或 "STALE_IF_ERROR"
-const data = await response.json();
+// 3. 愉快地使用它！
+const response = await myFetch(new Request('https://api.example.com/data'), (req) => fetch(req));
+console.log(response.headers.get('x-proxy-cache'));
 ```
+
+### 进阶用法：缓存 POST 请求
+
+你可以通过配置 `methods` 开启 POST/PUT 缓存，并使用 `body` 过滤器排除请求体中的动态字段（如时间戳、随机数），从而确保缓存键的稳定性。
+
+```typescript
+const myPostFetch = createCachedFetch({
+  cache,
+  config: {
+    methods: ['GET', 'POST'], // 允许缓存 POST
+    body: {
+      exclude: ['timestamp', 'nonce'] // 生成缓存键时忽略这些动态字段
+    },
+    cacheRules: [
+      { method: 'POST', path: '/api/v1/query' } // 仅对特定的 POST 接口生效
+    ],
+    forceCache: true // 对于 POST 请求，后端通常不发 Cache-Control，建议开启强制缓存
+  }
+});
+```
+
+## 配置详解：`SiteCacheConfig`
+
+| 配置项 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `methods` | `string[]` | 允许缓存的 HTTP 方法列表。默认仅为 `['GET', 'HEAD']`。 |
+| `cacheRules` | `CacheRule[]` | 精细化拦截规则。如果配置，请求必须匹配其中至少一条规则才会被缓存。 |
+| `query` | `KeyFilterConfig` | URL 查询参数过滤（`include` 白名单 / `exclude` 黑名单）。 |
+| `headers` | `KeyFilterConfig` | 请求头过滤。 |
+| `cookies` | `KeyFilterConfig` | Cookie 字段过滤。 |
+| `body` | `KeyFilterConfig` | **仅限 JSON** 的请求体字段过滤。 |
+| `staleIfError`| `boolean` | 网络请求失败时，是否强制返回本地过期的旧缓存。 |
+| `forceCache` | `boolean` | 是否无视源站指令强制执行缓存，常用于离线应用。 |
+
+### `CacheRule` 规则对象
+- `method`: 匹配的 HTTP 方法。
+- `path`: 路径前缀匹配（如 `/api/`）。
+- `query`: 键值对匹配。值可以是 `string`（全等匹配）、`true`（参数必须存在）、`false`（参数必须不存在）。
 
 ## 适配器 (Adapters)
 

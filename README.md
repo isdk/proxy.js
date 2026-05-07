@@ -15,6 +15,8 @@ In high-concurrency environments—like **API Proxies**, **Web Scrapers**, or **
 ## Key Features
 
 - **🚀 Hybrid Multi-tier Cache**: Extreme speed with L1 (LRU Memory) and persistence with L2 (Content Addressable Disk via `cacache`).
+- **📥 HTTP POST & Method Support**: Full support for caching POST, PUT, and other methods with intelligent request body fingerprinting.
+- **🎯 Precision Filtering**: Fine-grained `cacheRules` to intercept specific paths or query parameters.
 - **🌊 Streaming Native**: Fully stream-based internal pipeline natively prevents Out-Of-Memory (OOM) issues when proxying large files.
 - **🧠 Intelligent Meta-Residency**: Metadata (Headers, Status, Policy) stays in memory regardless of body size, ensuring nanosecond cache policy evaluations.
 - **🔄 Stale-While-Revalidate (SWR)**: Serve stale content instantly while updating the cache silently in the background.
@@ -33,6 +35,8 @@ pnpm add @isdk/proxy
 
 The primary way to use `@isdk/proxy` is via the `fetchWithCache` function, which can wrap any HTTP request logic.
 
+### Basic Usage (GET)
+
 ```typescript
 import { SmartCache, createCachedFetch } from '@isdk/proxy';
 
@@ -42,23 +46,58 @@ const cache = new SmartCache({
   maxMemorySize: 1024 * 1024 // 1MB threshold
 });
 
-// 2. Create a pre-configured cached fetcher (automatically tracks concurrent requests)
+// 2. Create a pre-configured cached fetcher
 const myFetch = createCachedFetch({
   cache,
   config: {
     staleIfError: true,
-    forceCache: false // Set to true to cache everything (ignore no-store) for offline-first apps
   },
   backgroundUpdate: true // Enable SWR
 });
 
-// 3. Use it anywhere in your app!
-const request = new Request('https://api.example.com/data');
-const response = await myFetch(request, (req) => fetch(req));
-
-console.log(response.headers.get('x-proxy-cache')); // "MISS", "HIT", "STALE", or "STALE_IF_ERROR"
-const data = await response.json();
+// 3. Use it!
+const response = await myFetch(new Request('https://api.example.com/data'), (req) => fetch(req));
+console.log(response.headers.get('x-proxy-cache'));
 ```
+
+### Advanced Usage: Caching POST Requests
+
+You can cache POST/PUT requests by enabling methods and defining body filters to ignore dynamic fields (like timestamps) in the request body.
+
+```typescript
+const myPostFetch = createCachedFetch({
+  cache,
+  config: {
+    methods: ['GET', 'POST'], // Enable POST caching
+    body: {
+      exclude: ['timestamp', 'nonce'] // Ignore these fields when generating cache keys
+    },
+    cacheRules: [
+      { method: 'POST', path: '/api/v1/query' } // Only cache specific POST endpoints
+    ],
+    forceCache: true // Often needed for POST if backend doesn't send Cache-Control
+  }
+});
+```
+
+## Configuration: `SiteCacheConfig`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `methods` | `string[]` | List of allowed HTTP methods. Default: `['GET', 'HEAD']`. |
+| `cacheRules` | `CacheRule[]` | Fine-grained rules. If set, a request must match at least one rule to be cached. |
+| `query` | `KeyFilterConfig` | Filters for URL search parameters (`include`/`exclude`). |
+| `headers` | `KeyFilterConfig` | Filters for request headers. |
+| `cookies` | `KeyFilterConfig` | Filters for cookies. |
+| `body` | `KeyFilterConfig` | Filters for JSON request body fields. |
+| `staleIfError`| `boolean` | Serve stale cache on network failure. |
+| `forceCache` | `boolean` | Ignore `no-store` and force caching (useful for offline support). |
+
+### `CacheRule` Object
+
+- `method`: HTTP method to match.
+- `path`: URL pathname prefix (e.g., `/api/`).
+- `query`: Key-value pairs. Values can be `string` (exact match), `true` (must exist), or `false` (must not exist).
 
 ## Adapters
 
@@ -119,6 +158,7 @@ The hybrid multi-tier storage engine.
 ### Cache Status Headers
 
 Every response processed by `@isdk/proxy` will include an `x-proxy-cache` header indicating its lifecycle:
+
 - `HIT`: Served entirely from L1 or L2 cache.
 - `MISS`: Bypassed cache and fetched from the origin server.
 - `STALE`: Served from stale cache while a background update was initiated (SWR).

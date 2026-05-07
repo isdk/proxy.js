@@ -5,7 +5,7 @@ import { SiteCacheConfig } from '../types';
 describe('generateCacheKey', () => {
   const defaultConfig: SiteCacheConfig = {};
 
-  it('相同请求应该生成相同的 Key', () => {
+  it('相同请求应该生成相同的 Key', async () => {
     const req1 = new Request('https://example.com/api?a=1', {
       headers: { 'X-Test': 'val', 'Cookie': 'id=123' }
     });
@@ -13,10 +13,10 @@ describe('generateCacheKey', () => {
       headers: { 'X-Test': 'val', 'Cookie': 'id=123' }
     });
 
-    expect(generateCacheKey(req1, defaultConfig)).toBe(generateCacheKey(req2, defaultConfig));
+    expect(await generateCacheKey(req1, defaultConfig)).toBe(await generateCacheKey(req2, defaultConfig));
   });
 
-  it('Query 参数过滤应该生效', () => {
+  it('Query 参数过滤应该生效', async () => {
     const config: SiteCacheConfig = {
       query: { include: ['id'] } // 只包含 id，忽略其他
     };
@@ -24,10 +24,10 @@ describe('generateCacheKey', () => {
     const req1 = new Request('https://example.com/api?id=1&token=ignore_me');
     const req2 = new Request('https://example.com/api?id=1&token=another_token');
 
-    expect(generateCacheKey(req1, config)).toBe(generateCacheKey(req2, config));
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
   });
 
-  it('Headers 过滤应该生效', () => {
+  it('Headers 过滤应该生效', async () => {
     const config: SiteCacheConfig = {
       headers: { exclude: ['user-agent'] } // 排除 UA
     };
@@ -35,10 +35,10 @@ describe('generateCacheKey', () => {
     const req1 = new Request('https://example.com/', { headers: { 'User-Agent': 'Chrome' } });
     const req2 = new Request('https://example.com/', { headers: { 'User-Agent': 'Firefox' } });
 
-    expect(generateCacheKey(req1, config)).toBe(generateCacheKey(req2, config));
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
   });
 
-  it('Cookies 过滤应该生效', () => {
+  it('Cookies 过滤应该生效', async () => {
     const config: SiteCacheConfig = {
       cookies: { include: ['session'] }
     };
@@ -46,13 +46,65 @@ describe('generateCacheKey', () => {
     const req1 = new Request('https://example.com/', { headers: { 'Cookie': 'session=abc; track=123' } });
     const req2 = new Request('https://example.com/', { headers: { 'Cookie': 'session=abc; track=456' } });
 
-    expect(generateCacheKey(req1, config)).toBe(generateCacheKey(req2, config));
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
   });
 
-  it('Method 不同应该生成不同的 Key', () => {
+  it('Method 不同应该生成不同的 Key', async () => {
     const req1 = new Request('https://example.com/', { method: 'GET' });
     const req2 = new Request('https://example.com/', { method: 'POST' });
 
-    expect(generateCacheKey(req1, defaultConfig)).not.toBe(generateCacheKey(req2, defaultConfig));
+    expect(await generateCacheKey(req1, defaultConfig)).not.toBe(await generateCacheKey(req2, defaultConfig));
+  });
+
+  it('相同 Body 的 POST 应该生成相同的 Key', async () => {
+    const config: SiteCacheConfig = { methods: ['POST'] };
+    const body = JSON.stringify({ a: 1 });
+    const req1 = new Request('https://example.com/', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body 
+    });
+    const req2 = new Request('https://example.com/', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body 
+    });
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
+  });
+
+  it('不同 Body 的 POST 应该生成不同的 Key', async () => {
+    const config: SiteCacheConfig = { methods: ['POST'] };
+    const req1 = new Request('https://example.com/', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a: 1 })
+    });
+    const req2 = new Request('https://example.com/', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a: 2 })
+    });
+
+    expect(await generateCacheKey(req1, config)).not.toBe(await generateCacheKey(req2, config));
+  });
+
+  it('Body 过滤应该生效', async () => {
+    const config: SiteCacheConfig = { 
+      methods: ['POST'],
+      body: { include: ['id'] }
+    };
+    const req1 = new Request('https://example.com/', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 1, ts: 123 })
+    });
+    const req2 = new Request('https://example.com/', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 1, ts: 456 })
+    });
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
   });
 });
