@@ -22,6 +22,8 @@ export interface SiteCacheConfig {
   cookies?: KeyFilterConfig;
   /** 当后端请求失败且存在旧缓存时，是否强制返回旧缓存（容错机制） */
   staleIfError?: boolean;
+  /** 是否强制缓存一切响应（无视 no-store 等不缓存指令），用于极端的离线可用容错场景 */
+  forceCache?: boolean;
 }
 
 /**
@@ -51,8 +53,8 @@ export interface CacheMetadata {
  * 完整的缓存条目
  */
 export interface CacheEntry extends CacheMetadata {
-  /** 响应体的 Buffer 数据 */
-  body: Buffer;
+  /** 响应体数据：小文件为 Buffer，大文件为可读流 */
+  body: Buffer | any;
 }
 
 /**

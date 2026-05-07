@@ -15,10 +15,12 @@ In high-concurrency environments—like **API Proxies**, **Web Scrapers**, or **
 ## Key Features
 
 - **🚀 Hybrid Multi-tier Cache**: Extreme speed with L1 (LRU Memory) and persistence with L2 (Content Addressable Disk via `cacache`).
+- **🌊 Streaming Native**: Fully stream-based internal pipeline natively prevents Out-Of-Memory (OOM) issues when proxying large files.
 - **🧠 Intelligent Meta-Residency**: Metadata (Headers, Status, Policy) stays in memory regardless of body size, ensuring nanosecond cache policy evaluations.
 - **🔄 Stale-While-Revalidate (SWR)**: Serve stale content instantly while updating the cache silently in the background.
-- **🛡️ Request Collapsing**: Prevent cache stampede by ensuring only one network request is made for concurrent misses on the same resource.
-- **🚑 Error Fallback (Stale-If-Error)**: Automatically serve stale content if the upstream is down.
+- **🛡️ Request Coalescing (Anti-Stampede)**: Prevent cache stampede by coalescing identical concurrent requests using a shared tracker, ensuring only one network request is made.
+- **🚑 Offline Resilience**: Automatically serve stale content if the upstream is down (`staleIfError`), or forcefully cache everything ignoring `Cache-Control: no-store` (`forceCache`).
+- **🕵️ Transparent Cache Status**: Injects standard `x-proxy-cache` headers (`HIT`, `STALE`, `MISS`, `STALE_IF_ERROR`) into responses for easy observability.
 - **🌐 Framework Agnostic**: Works everywhere by using standard Web `Request`/`Response` APIs.
 
 ## Installation
@@ -32,7 +34,7 @@ pnpm add @isdk/proxy
 The primary way to use `@isdk/proxy` is via the `fetchWithCache` function, which can wrap any HTTP request logic.
 
 ```typescript
-import { SmartCache, fetchWithCache } from '@isdk/proxy';
+import { SmartCache, createCachedFetch } from '@isdk/proxy';
 
 // 1. Initialize the hybrid cache
 const cache = new SmartCache({
@@ -40,18 +42,21 @@ const cache = new SmartCache({
   maxMemorySize: 1024 * 1024 // 1MB threshold
 });
 
-// 2. Wrap your fetcher
-const request = new Request('https://api.example.com/data');
-const response = await fetchWithCache(
-  request,
-  (req) => fetch(req), // Any fetcher that returns a Promise<Response>
-  {
-    cache,
-    config: { staleIfError: true },
-    backgroundUpdate: true // Enable SWR
-  }
-);
+// 2. Create a pre-configured cached fetcher (automatically tracks concurrent requests)
+const myFetch = createCachedFetch({
+  cache,
+  config: { 
+    staleIfError: true,
+    forceCache: false // Set to true to cache everything (ignore no-store) for offline-first apps
+  },
+  backgroundUpdate: true // Enable SWR
+});
 
+// 3. Use it anywhere in your app!
+const request = new Request('https://api.example.com/data');
+const response = await myFetch(request, (req) => fetch(req));
+
+console.log(response.headers.get('x-proxy-cache')); // "MISS", "HIT", "STALE", or "STALE_IF_ERROR"
 const data = await response.json();
 ```
 
@@ -76,20 +81,46 @@ When multiple concurrent requests hit a missing or expired cache entry, `@isdk/p
 
 ## API Reference
 
+### `createCachedFetch(options)` (Recommended)
+
+A higher-order factory function designed for end-users. It creates a pre-configured `fetch` equivalent that automatically tracks concurrent requests internally to prevent cache stampedes.
+
+- **`options.cache`**: An instance of `SmartCache`.
+- **`options.config`**: A `SiteCacheConfig` object containing:
+  - `staleIfError` (boolean): Serve stale cache if the network fails.
+  - `forceCache` (boolean): Force cache everything, ignoring `Cache-Control: no-store`. Ideal for offline-first resilience.
+- **`options.backgroundUpdate`**: Set to `true` to enable SWR behavior.
+- **Returns**: A reusable `(request: Request, fetcher: (req: Request) => Promise<Response>) => Promise<Response>` function.
+
+### `createFetchWithCache()`
+
+A single-responsibility higher-order function that encapsulates the `activeCacheWrites` concurrency tracker. It returns a variant of `fetchWithCache` that shares an internal Map to coalesce identical concurrent requests. Use this if you are building an intermediate wrapper but don't want to rely on the top-level `createCachedFetch` factory.
+
+- **Returns**: `(request: Request, fetcher: (req: Request) => Promise<Response>, options: Omit<FetchWithCacheOptions, 'activeCacheWrites'>) => Promise<Response>`
+
+### `fetchWithCache(request, fetcher, options)`
+
+The core caching orchestrator. Use this directly if you need low-level control or are building a library on top of it.
+
+- **`request`**: Web Standard `Request`.
+- **`fetcher`**: The raw fetching callback `(req: Request) => Promise<Response>`.
+- **`options.activeCacheWrites`**: A `Map<string, Promise<void>>` that YOU must provide and maintain to coalesce concurrent requests. (If you don't want to manage this, use `createCachedFetch` instead).
+
 ### `SmartCache`
 
-The class managing multi-tier storage.
+The hybrid multi-tier storage engine.
 
 - `new SmartCache(options)`
-- `options.maxMemorySize`: Threshold for offloading bodies to disk (default 1MB).
+- **`options.maxMemorySize`**: Threshold (in bytes) for offloading bodies to disk (default `1048576`, i.e., 1MB).
+- **`options.storagePath`**: Disk storage path for the `cacache` engine (defaults to a system temp folder).
 
-### `fetchWithCache`
+### Cache Status Headers
 
-The central orchestrator for the caching lifecycle.
-
-- `request`: Web Standard `Request`.
-- `fetcher`: `(req: Request) => Promise<Response>`.
-- `options.backgroundUpdate`: Set to `true` for SWR behavior.
+Every response processed by `@isdk/proxy` will include an `x-proxy-cache` header indicating its lifecycle:
+- `HIT`: Served entirely from L1 or L2 cache.
+- `MISS`: Bypassed cache and fetched from the origin server.
+- `STALE`: Served from stale cache while a background update was initiated (SWR).
+- `STALE_IF_ERROR`: Origin fetch failed; served from stale cache as a fallback.
 
 ## License
 

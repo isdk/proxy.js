@@ -13,10 +13,12 @@
 ## 核心特性
 
 - **🚀 混合多级缓存**: L1 (LRU 内存) 提供极速响应，L2 (内容寻址磁盘 `cacache`) 提供持久化存储。
+- **🌊 原生流式分发**: 内部完全基于 Stream 管道化构建，在代理大文件时天然防 OOM 内存溢出。
 - **🧠 智能元数据驻留**: 无论文件多大，元数据 (Headers, Status, Policy) 始终驻留在内存中，确保纳秒级的缓存策略判定。
 - **🔄 过期后异步更新 (SWR)**: 立即返回过期数据，同时在后台静默更新缓存，实现“零等待”响应。
-- **🛡️ 请求合并 (Request Collapsing)**: 有效防止缓存击穿，确保同一资源在并发失效时只有一个网络请求。
-- **🚑 错误降级 (Stale-If-Error)**: 当后端服务宕机时，自动强制返回旧缓存以保证可用性。
+- **🛡️ 请求合并防击穿 (Request Coalescing)**: 当大量并发请求同一资源时，通过全局 Map 合并排队，确保只有一个源站网络请求被发出，彻底防止缓存击穿。
+- **🚑 强离线容灾**: 当后端服务宕机时，自动强制返回旧缓存 (`staleIfError`)；甚至可以无视 `no-store` 指令强制缓存一切内容 (`forceCache`)。
+- **🕵️ 透明的缓存状态**: 自动在返回结果中注入 `x-proxy-cache` 响应头 (`HIT`, `STALE`, `MISS`, `STALE_IF_ERROR`)，极大方便调试与监控。
 - **🌐 环境中立**: 完美适配所有支持 Web 标准 `Request`/`Response` API 的环境。
 
 ## 安装
@@ -30,7 +32,7 @@ pnpm add @isdk/proxy
 使用 `@isdk/proxy` 的主要方式是通过 `fetchWithCache` 函数，它可以包装任何 HTTP 请求逻辑。
 
 ```typescript
-import { SmartCache, fetchWithCache } from '@isdk/proxy';
+import { SmartCache, createCachedFetch } from '@isdk/proxy';
 
 // 1. 初始化混合缓存实例
 const cache = new SmartCache({
@@ -38,18 +40,21 @@ const cache = new SmartCache({
   maxMemorySize: 1024 * 1024 // 内存阈值 1MB
 });
 
-// 2. 包装你的请求函数
-const request = new Request('https://api.example.com/data');
-const response = await fetchWithCache(
-  request,
-  (req) => fetch(req), // 任何返回 Promise<Response> 的获取函数
-  {
-    cache,
-    config: { staleIfError: true },
-    backgroundUpdate: true // 开启 SWR (过期后后台更新)
-  }
-);
+// 2. 创建一个预配置的缓存 Fetcher (内部会自动防缓存击穿)
+const myFetch = createCachedFetch({
+  cache,
+  config: { 
+    staleIfError: true,
+    forceCache: false // 设置为 true 可无视 no-store 强制缓存一切，适用于离线应用
+  },
+  backgroundUpdate: true // 开启 SWR (过期后后台静默更新)
+});
 
+// 3. 在应用的任何地方愉快地使用它！
+const request = new Request('https://api.example.com/data');
+const response = await myFetch(request, (req) => fetch(req)); // 传入任何返回 Promise<Response> 的获取函数
+
+console.log(response.headers.get('x-proxy-cache')); // 输出: "MISS", "HIT", "STALE" 或 "STALE_IF_ERROR"
 const data = await response.json();
 ```
 
@@ -82,23 +87,48 @@ const data = await response.json();
 3. 网络请求完成后，自动更新 L1 和 L2 缓存。
 
 ## API 参考
+ 
+### `createCachedFetch(options)` (强烈推荐)
+
+面向终端用户的高阶工厂函数。它会自动在内部闭包中维护并发追踪器，为你生成一个开箱即用、绝不会发生缓存击穿的 Fetch 实例。
+
+- **`options.cache`**: `SmartCache` 实例。
+- **`options.config`**: 全局缓存配置对象 (`SiteCacheConfig`):
+  - `staleIfError` (boolean): 网络请求失败时，是否强制返回本地过期的旧缓存以保障可用性。
+  - `forceCache` (boolean): 是否无视源站的 `Cache-Control: no-store` 指令强制执行缓存入盘。适用于极端弱网或离线优先的应用场景。
+- **`options.backgroundUpdate`**: 设置为 `true` 以开启 SWR (Stale-While-Revalidate) 行为。
+- **返回值**: 一个可随处调用的 `(request: Request, fetcher: (req: Request) => Promise<Response>) => Promise<Response>` 包装函数。
+
+### `createFetchWithCache()`
+
+单一职责的高阶函数。专门用于封装和隔离 `activeCacheWrites` 并发追踪器。
+它会返回一个绑定了闭包内 Map 的 `fetchWithCache` 变体函数。如果你正在构建中间件，但又不想使用顶层的 `createCachedFetch` 工厂，可以用它来免除手动维护追踪器的烦恼。
+
+- **返回值**: `(request: Request, fetcher: (req: Request) => Promise<Response>, options: Omit<FetchWithCacheOptions, 'activeCacheWrites'>) => Promise<Response>`
+
+### `fetchWithCache(request, fetcher, options)`
+
+底层的核心缓存协调函数。如果你在开发更上层的插件或有特殊的生命周期控制需求，可以直接调用它。
+
+- **`request`**: Web 标准的 `Request` 对象。
+- **`fetcher`**: 发起真实网络请求的回调函数 `(req: Request) => Promise<Response>`。
+- **`options.activeCacheWrites`**: 必须由**外部传入**的一个 `Map<string, Promise<void>>`，用于在多个并发的 `fetchWithCache` 调用间共享锁状态，以实现请求合并。如果你不想自己维护它，请使用 `createCachedFetch`。
 
 ### `SmartCache`
 
-管理多级存储的类。
+管理多级混合存储的核心引擎。
 
 - `new SmartCache(options)`
-- `options.maxMemorySize`: 响应体进入内存的阈值（默认 1MB）。
-- `options.storagePath`: 磁盘存储路径。
+- **`options.maxMemorySize`**: 响应体进入内存 (L1) 的大小阈值（字节），超过此大小的文件将直接进入磁盘流传输（默认 `1048576` 即 1MB）。
+- **`options.storagePath`**: 磁盘 L2 缓存（cacache）的物理存储路径（默认为操作系统的临时目录）。
 
-### `fetchWithCache`
+### 缓存状态标头 (Cache Status Headers)
 
-缓存生命周期的核心协调函数。
-
-- `request`: Web 标准 `Request` 对象。
-- `fetcher`: `(req: Request) => Promise<Response>` 回调函数。
-- `options.backgroundUpdate`: 设置为 `true` 开启 SWR 行为。
-- `options.onBackgroundUpdate`: 后台任务触发时的回调，可用于追踪 Promise 完成。
+由 `@isdk/proxy` 处理并返回的所有 `Response`，其 Headers 中都会注入 `x-proxy-cache` 字段以便观测生命周期，可能的值有：
+- `HIT`: 完美命中，数据完全来自于 L1 内存或 L2 磁盘缓存。
+- `MISS`: 缓存未命中（或主动绕过缓存），数据真实来自于源站请求。
+- `STALE`: 命中过期缓存（已通过 SWR 机制在后台发起了静默网络更新）。
+- `STALE_IF_ERROR`: 源站请求失败（网络断开或报错），系统作为兜底强制返回了过期的旧缓存。
 
 ## 许可证
 

@@ -18,12 +18,6 @@ export interface SmartCacheOptions {
 
 /**
  * 智能混合缓存类 (Hybrid Cache)
- * 
- * 内部管理 L1 (LRU 内存) 和 L2 (Content Addressable 磁盘) 两级存储。
- * 核心特性：
- * 1. **Meta 驻留**：无论文件多大，元数据 (Headers, Status, Policy) 始终在内存中，加速缓存判定。
- * 2. **大小自适应**：小文件双写（内存+磁盘），大文件单写（仅磁盘）。
- * 3. **内容寻址**：基于 cacache，支持高性能的流式读写和数据一致性校验。
  */
 export class SmartCache {
   private memory: KeyvCacheableMemory;
@@ -31,7 +25,6 @@ export class SmartCache {
   private maxMemorySize: number;
 
   constructor(options: SmartCacheOptions = {}) {
-    // 默认使用系统临时目录下的 isdk-proxy-cache 文件夹
     this.storagePath = options.storagePath || path.join(os.tmpdir(), 'isdk-proxy-cache');
     this.maxMemorySize = options.maxMemorySize ?? 1024 * 1024;
     this.memory = new KeyvCacheableMemory({
@@ -43,48 +36,44 @@ export class SmartCache {
 
   /**
    * 获取缓存条目
-   * 优先从内存读取 Meta，根据 size 决定是否从磁盘读取 Body
+   * 如果是小文件，返回带 Buffer 的 Entry；如果是大文件，返回带 ReadStream 的 Entry。
    */
   async get(key: string): Promise<CacheEntry | null> {
-    // 1. 尝试从内存获取 (可能只包含 Meta)
     const memEntry = await this.memory.get(key) as (Partial<CacheEntry> & CacheMetadata) | undefined;
-    
+
     if (memEntry) {
-      // 场景 A: 内存中已经有完整的 Body (小文件)
       if (memEntry.body) {
         return memEntry as CacheEntry;
       }
-      
-      // 场景 B: 内存中没有 Body，但 size 为 0 (空响应)
+
       if (memEntry.size === 0) {
         return { ...memEntry, body: Buffer.alloc(0) } as CacheEntry;
       }
 
-      // 场景 C: 内存中没有 Body，且 size > 0 (确定是大文件在磁盘)
-      try {
-        const { data } = await cacache.get(this.storagePath, key);
-        return { ...memEntry, body: data };
-      } catch (e) {
-        return null; 
-      }
+      // 关键改进：大文件直接返回磁盘流，不再加载进内存
+      const stream = cacache.get.stream(this.storagePath, key);
+      return { ...memEntry, body: stream } as CacheEntry;
     }
 
-    // 2. 内存完全未命中，从磁盘获取完整数据
+    // 内存完全未命中，从磁盘获取完整数据
     try {
       const info = await cacache.get.info(this.storagePath, key);
       if (!info) return null;
 
-      const { data, metadata } = await cacache.get(this.storagePath, key);
-      const castedMeta = metadata as unknown as CacheMetadata;
-      
-      const entry: CacheEntry = {
-        ...castedMeta,
-        body: data,
-      };
-
-      await this.saveToMemory(key, data, castedMeta);
-
-      return entry;
+      // 如果文件很小，我们才 atomic 读取
+      if (info.size! <= this.maxMemorySize) {
+        const { data, metadata } = await cacache.get(this.storagePath, key);
+        const castedMeta = metadata as unknown as CacheMetadata;
+        const entry: CacheEntry = { ...castedMeta, body: data };
+        await this.saveToMemory(key, data, castedMeta);
+        return entry;
+      } else {
+        // 大文件：读取 Meta 后返回流
+        const info = await cacache.get.info(this.storagePath, key);
+        const castedMeta = info!.metadata as unknown as CacheMetadata;
+        await this.saveToMemory(key, null as any, castedMeta);
+        return { ...castedMeta, body: cacache.get.stream(this.storagePath, key) };
+      }
     } catch (error) {
       return null;
     }
@@ -104,31 +93,25 @@ export class SmartCache {
   }
 
   /**
-   * 内部方法：处理内存回填逻辑，确保 Meta 始终驻留
+   * 内部方法：处理内存回填
    */
   private async saveToMemory(key: string, body: Buffer, metadata: CacheMetadata): Promise<void> {
-    if (body.length > 0 && body.length <= this.maxMemorySize) {
-      // 小文件：Meta + Body 进内存
+    if (body && body.length > 0 && body.length <= this.maxMemorySize) {
       await this.memory.set(key, { ...metadata, body });
     } else {
-      // 大文件或空文件：仅 Meta 进内存，Body 留空
       const { ...metaOnly } = metadata;
       await this.memory.set(key, metaOnly);
     }
   }
 
-  /**
-   * 获取磁盘流
-   */
-  getStream(key: string) {
-    return cacache.get.stream(this.storagePath, key);
+  getStream(key: string): NodeJS.ReadableStream {
+    return cacache.get.stream(this.storagePath, key) as unknown as NodeJS.ReadableStream;
   }
 
-  /**
-   * 写入磁盘流
-   */
-  setStream(key: string, metadata: Omit<CacheMetadata, 'size'>) {
-    return cacache.put.stream(this.storagePath, key, { metadata });
+  setStream(key: string, metadata: Omit<CacheMetadata, 'size'>): NodeJS.WritableStream {
+    // 乐观清除内存缓存，防止磁盘更新后内存仍然返回旧数据
+    this.memory.delete(key).catch(() => { });
+    return cacache.put.stream(this.storagePath, key, { metadata }) as unknown as NodeJS.WritableStream;
   }
 
   async delete(key: string): Promise<void> {
