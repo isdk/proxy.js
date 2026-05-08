@@ -136,6 +136,8 @@ const myFetch = createCachedFetch({
 
 `@isdk/proxy` is designed to be framework-agnostic. While the core library is pure, you can find (or build) adapters for specific environments:
 
+- **HTTP Caching Proxy Server (Node.js)**: See [@isdk/proxy-server](https://www.npmjs.com/package/@isdk/proxy-server) (separate package) for running a standalone HTTP forward proxy.
+- **Crawlee Adapter**: See [@isdk/proxy-crawlee](https://www.npmjs.com/package/@isdk/proxy-crawlee) (separate package) for integrating with Crawlee web scraping lifecycle.
 - **MSW Adapter**: See `@isdk/proxy-msw` (separate package) to use this caching engine as an MSW interceptor.
 - **Axios Adapter**: Easily implemented by converting Axios config to Web `Request`.
 

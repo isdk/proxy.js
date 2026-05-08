@@ -117,9 +117,9 @@ const myFetch = createCachedFetch({
   cache,
   config: {
     cacheRules: [
-      { 
+      {
         path: ['/api/v1/items/*', '!/api/v1/items/private/*'], // v1 items，排除 private
-        query: { 
+        query: {
           format: '/^(json|xml)$/',     // 正则匹配 format 参数
           'page*': true                  // Glob：任何以 page 开头的参数必须存在
         },
@@ -134,9 +134,10 @@ const myFetch = createCachedFetch({
 
 `@isdk/proxy` 旨在成为环境无关的纯净核心。虽然核心库保持纯粹，但你可以轻松集成或找到针对特定环境的适配器：
 
-- **MSW 适配器**: 参见 `@isdk/proxy-msw` (独立包)，将此缓存引擎作为 MSW 拦截器使用。
+- **HTTP 代理服务器 (Node.js)**: 参见 [@isdk/proxy-server](https://www.npmjs.com/package/@isdk/proxy-server)（独立包），用于启动独立的 HTTP 缓存代理服务器。
+- **Crawlee 适配器**: 参见 [@isdk/proxy-crawlee](https://www.npmjs.com/package/@isdk/proxy-crawlee)（独立包），用于集成到 Crawlee 网页爬虫生命周期中。
+- **MSW 适配器**: 参见 `@isdk/proxy-msw`（独立包），将此缓存引擎作为 MSW 拦截器使用。
 - **Axios 适配器**: 可以通过将 Axios 配置转换为 Web 标准 `Request` 轻松实现。
-- **Crawlee 适配器**: 能够集成到爬虫生命周期中，减少重复抓取。
 
 ## 架构设计详解
 
@@ -254,6 +255,7 @@ const config = getSiteConfig('https://api.example.com/data', {
 - **返回值**: `boolean | undefined`
 
 **优先级逻辑**：
+
 1. `exclude` 命中 → 直接返回 `false`（优先级最高）
 2. `include` 存在且命中 → 返回 `true`
 3. `include` 存在但不命中 → 返回 `false`
