@@ -243,4 +243,59 @@ describe('fetchWithCache', () => {
     expect(mockFetcher).toHaveBeenCalledTimes(2);
     await res.text();
   });
+
+  it('在并发请求合并时，如果发起者 Fetch 失败，所有并发等待者应收到相同错误且不重试', async () => {
+    const { cache, activeCacheWrites } = await createTestCache('coalesce-fail');
+    const request = new Request('https://api.example.com/fail');
+    
+    const mockFetcher = vi.fn().mockImplementation(async () => {
+      await new Promise(r => setTimeout(r, 50));
+      throw new Error('Network Error');
+    });
+
+    const p1 = fetchWithCache(request.clone(), mockFetcher, { cache, config, activeCacheWrites });
+    const p2 = fetchWithCache(request.clone(), mockFetcher, { cache, config, activeCacheWrites });
+
+    await expect(p1).rejects.toThrow('Network Error');
+    await expect(p2).rejects.toThrow('Network Error');
+    
+    // 关键：fetcher 应该只被调用了 1 次
+    expect(mockFetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('应该支持后台更新 (SWR) 的并发合并', async () => {
+    const { cache, activeCacheWrites } = await createTestCache('swr-coalesce');
+    const request = new Request('https://api.example.com/swr-coalesce');
+
+    // 1. 存入一个已过期的缓存
+    const res0 = await fetchWithCache(request, async () => new Response('old', {
+      headers: { 'Cache-Control': 'public, max-age=1' }
+    }), { cache, config, activeCacheWrites });
+    await res0.text();
+    await Promise.all(activeCacheWrites.values());
+
+    await new Promise(r => setTimeout(r, 1100)); // 确保过期
+
+    // 2. 模拟一个较慢的网络响应
+    const mockFetcher = vi.fn().mockImplementation(async () => {
+      await new Promise(r => setTimeout(r, 100));
+      return new Response('new', { headers: { 'Cache-Control': 'public, max-age=3600' } });
+    });
+
+    // 3. 同时发起两个 STALE 请求
+    const [resA, resB] = await Promise.all([
+      fetchWithCache(request.clone(), mockFetcher, { cache, config, backgroundUpdate: true, activeCacheWrites }),
+      fetchWithCache(request.clone(), mockFetcher, { cache, config, backgroundUpdate: true, activeCacheWrites })
+    ]);
+
+    expect(resA.headers.get('x-proxy-cache')).toBe('STALE');
+    expect(resB.headers.get('x-proxy-cache')).toBe('STALE');
+
+    // 等待后台更新完成
+    await new Promise(r => setTimeout(r, 20));
+    await Promise.all(activeCacheWrites.values());
+
+    // 关键：即使有两个 STALE 请求，后台 fetcher 应该只被调用一次
+    expect(mockFetcher).toHaveBeenCalledTimes(1);
+  });
 });

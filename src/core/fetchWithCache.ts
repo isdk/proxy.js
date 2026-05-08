@@ -218,6 +218,12 @@ function evaluateCachePolicy(ctx: FetchWithCacheContext, entry: CacheEntry): 'HI
  * 触发后台 SWR 更新
  */
 function triggerBackgroundUpdate(ctx: FetchWithCacheContext, fallbackEntry: CacheEntry): void {
+  // 核心优化：后台更新也需要防击穿。
+  // 如果当前已经有一个针对该 Key 的 Fetch 任务在运行（无论是前台还是后台触发的），直接复用它。
+  if (ctx.activeCacheWrites.has(ctx.cacheKey)) {
+    return;
+  }
+
   const promise = executeFetchAndCache(ctx, fallbackEntry).catch(error => {
     console.error(`[SWR Error] Background update failed for ${ctx.cacheKey}:`, error);
     return buildResponseFromCache(fallbackEntry, 'STALE_IF_ERROR');
@@ -232,16 +238,15 @@ async function waitForActiveCacheWrite(ctx: FetchWithCacheContext): Promise<Resp
   const writePromise = ctx.activeCacheWrites.get(ctx.cacheKey);
   if (!writePromise) return null;
 
-  try {
-    await writePromise;
-    // 写入完成后，尝试从缓存中获取完整数据
-    const cachedEntry = await ctx.cache.get(ctx.cacheKey);
-    if (cachedEntry) {
-      return buildResponseFromCache(cachedEntry, 'HIT'); // 当作 HIT 处理
-    }
-  } catch (error) {
-    // 并发写入任务失败，降级返回 null，让当前流程继续去尝试 fetch
-    console.warn(`[Cache Warning] Awaited active cache write failed for ${ctx.cacheKey}`);
+  // 等待并发写入任务完成。
+  // 注意：如果该任务失败，错误将直接向上抛出，确保所有并发等待者都能接收到相同的错误，
+  // 从而实现“请求合并”中的错误共享，并防止重复发起 Fetch。
+  await writePromise;
+
+  // 写入完成后，尝试从缓存中获取完整数据
+  const cachedEntry = await ctx.cache.get(ctx.cacheKey);
+  if (cachedEntry) {
+    return buildResponseFromCache(cachedEntry, 'HIT'); // 当作 HIT 处理
   }
   return null;
 }
