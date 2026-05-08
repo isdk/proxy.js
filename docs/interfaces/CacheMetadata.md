@@ -6,7 +6,7 @@
 
 # Interface: CacheMetadata
 
-Defined in: [types.ts:35](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L35)
+Defined in: [types.ts:117](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L117)
 
 缓存元数据
 
@@ -23,7 +23,7 @@ Defined in: [types.ts:35](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe
 
 > **headers**: `Record`\<`string`, `string`\>
 
-Defined in: [types.ts:39](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L39)
+Defined in: [types.ts:121](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L121)
 
 响应头对象
 
@@ -33,7 +33,7 @@ Defined in: [types.ts:39](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe
 
 > **method**: `string`
 
-Defined in: [types.ts:45](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L45)
+Defined in: [types.ts:127](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L127)
 
 原始请求方法
 
@@ -43,7 +43,7 @@ Defined in: [types.ts:45](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe
 
 > **policy**: `any`
 
-Defined in: [types.ts:41](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L41)
+Defined in: [types.ts:123](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L123)
 
 http-cache-semantics 策略对象，包含 TTL 和缓存指令
 
@@ -53,7 +53,7 @@ http-cache-semantics 策略对象，包含 TTL 和缓存指令
 
 > **size**: `number`
 
-Defined in: [types.ts:49](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L49)
+Defined in: [types.ts:131](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L131)
 
 Body 的字节长度，用于精确区分“空响应”与“未入内存的大响应”
 
@@ -63,7 +63,7 @@ Body 的字节长度，用于精确区分“空响应”与“未入内存的大
 
 > **status**: `number`
 
-Defined in: [types.ts:37](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L37)
+Defined in: [types.ts:119](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L119)
 
 HTTP 状态码
 
@@ -73,7 +73,7 @@ HTTP 状态码
 
 > **timestamp**: `number`
 
-Defined in: [types.ts:47](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L47)
+Defined in: [types.ts:129](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L129)
 
 缓存写入时的时间戳
 
@@ -83,6 +83,6 @@ Defined in: [types.ts:47](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe
 
 > **url**: `string`
 
-Defined in: [types.ts:43](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L43)
+Defined in: [types.ts:125](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L125)
 
 原始请求 URL

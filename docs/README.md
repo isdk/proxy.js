@@ -19,6 +19,8 @@ In high-concurrency environments—like **API Proxies**, **Web Scrapers**, or **
 ## Key Features
 
 - **🚀 Hybrid Multi-tier Cache**: Extreme speed with L1 (LRU Memory) and persistence with L2 (Content Addressable Disk via `cacache`).
+- **📥 HTTP POST & Method Support**: Full support for caching POST, PUT, and other methods with intelligent request body fingerprinting.
+- **🎯 Precision Filtering**: Fine-grained `cacheRules` to intercept specific paths or query parameters.
 - **🌊 Streaming Native**: Fully stream-based internal pipeline natively prevents Out-Of-Memory (OOM) issues when proxying large files.
 - **🧠 Intelligent Meta-Residency**: Metadata (Headers, Status, Policy) stays in memory regardless of body size, ensuring nanosecond cache policy evaluations.
 - **🔄 Stale-While-Revalidate (SWR)**: Serve stale content instantly while updating the cache silently in the background.
@@ -37,6 +39,8 @@ pnpm add @isdk/proxy
 
 The primary way to use `@isdk/proxy` is via the `fetchWithCache` function, which can wrap any HTTP request logic.
 
+### Basic Usage (GET)
+
 ```typescript
 import { SmartCache, createCachedFetch } from '@isdk/proxy';
 
@@ -46,28 +50,98 @@ const cache = new SmartCache({
   maxMemorySize: 1024 * 1024 // 1MB threshold
 });
 
-// 2. Create a pre-configured cached fetcher (automatically tracks concurrent requests)
+// 2. Create a pre-configured cached fetcher
 const myFetch = createCachedFetch({
   cache,
   config: {
     staleIfError: true,
-    forceCache: false // Set to true to cache everything (ignore no-store) for offline-first apps
   },
   backgroundUpdate: true // Enable SWR
 });
 
-// 3. Use it anywhere in your app!
-const request = new Request('https://api.example.com/data');
-const response = await myFetch(request, (req) => fetch(req));
+// 3. Use it!
+const response = await myFetch(new Request('https://api.example.com/data'), (req) => fetch(req));
+console.log(response.headers.get('x-proxy-cache'));
+```
 
-console.log(response.headers.get('x-proxy-cache')); // "MISS", "HIT", "STALE", or "STALE_IF_ERROR"
-const data = await response.json();
+### Advanced Usage: Caching POST Requests
+
+You can cache POST/PUT requests by enabling methods and defining body filters to ignore dynamic fields (like timestamps) in the request body.
+
+```typescript
+const myPostFetch = createCachedFetch({
+  cache,
+  config: {
+    methods: ['GET', 'POST'], // Enable POST caching
+    body: {
+      exclude: ['timestamp', 'nonce'] // Ignore these fields when generating cache keys
+    },
+    cacheRules: [
+      { method: 'POST', path: '/api/v1/query' } // Only cache specific POST endpoints
+    ],
+    forceCache: true // Often needed for POST if backend doesn't send Cache-Control
+  }
+});
+```
+
+## Configuration: `SiteCacheConfig`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `methods` | `string[]` | List of allowed HTTP methods. Default: `['GET', 'HEAD']`. |
+| `cacheRules` | `CacheRule[]` | Fine-grained rules. If set, a request must match at least one rule to be cached. |
+| `query` | `KeyFilterConfig` | Filters for URL search parameters (`include`/`exclude`). |
+| `headers` | `KeyFilterConfig` | Filters for request headers. |
+| `cookies` | `KeyFilterConfig` | Filters for cookies. |
+| `body` | `KeyFilterConfig` | Filters for JSON request body fields. |
+| `staleIfError`| `boolean` | Serve stale cache on network failure. |
+| `forceCache` | `boolean` | Ignore `no-store` and force caching (useful for offline support). |
+
+### `CacheRule` Object
+
+- `method`: HTTP method to match.
+- `path`: URL pathname matching (supports **RegExp**, **Glob**, **Array**, or **prefix match**).
+- `query`: Key-value pairs. Values can be `string` (exact/Glob match), `true` (must exist), `false` (must not exist), or `RegExp`.
+- `body`: Body content matching (supports **RegExp**, **Glob**, or **Array**).
+
+### Pattern Matching
+
+`@isdk/proxy` provides powerful pattern matching for all configurable fields:
+
+| Pattern Type | Example | Description |
+| :--- | :--- | :--- |
+| **RegExp** | `/api/v[12]/.*/i` | JavaScript RegExp (in JSON, use string like `"/api/v[12]/.*/i"`) |
+| **Glob** | `/**/*.json` | File path style wildcard matching |
+| **Negation** | `['!/api/private/**', '/api/**']` | Exclude patterns (prefixed with `!`, checked first) |
+| **Array** | `['/api/v1/*', '/api/v2/*']` | Multiple patterns (OR logic, negative takes precedence) |
+| **Boolean** | `true` / `false` | For query params: must/must not exist |
+
+**Example with advanced pattern matching:**
+
+```typescript
+const myFetch = createCachedFetch({
+  cache,
+  config: {
+    cacheRules: [
+      {
+        path: ['/api/v1/items/*', '!/api/v1/items/private/*'], // v1 items, exclude private
+        query: {
+          format: '/^(json|xml)$/',     // Regex for format param
+          'page*': true                  // Glob: any param starting with 'page' must exist
+        },
+        body: /\"action\"\s*:\s*\"query\"/ // Regex body match
+      }
+    ]
+  }
+});
 ```
 
 ## Adapters
 
 `@isdk/proxy` is designed to be framework-agnostic. While the core library is pure, you can find (or build) adapters for specific environments:
 
+- **HTTP Caching Proxy Server (Node.js)**: See [@isdk/proxy-server](https://www.npmjs.com/package/@isdk/proxy-server) (separate package) for running a standalone HTTP forward proxy.
+- **Crawlee Adapter**: See [@isdk/proxy-crawlee](https://www.npmjs.com/package/@isdk/proxy-crawlee) (separate package) for integrating with Crawlee web scraping lifecycle.
 - **MSW Adapter**: See `@isdk/proxy-msw` (separate package) to use this caching engine as an MSW interceptor.
 - **Axios Adapter**: Easily implemented by converting Axios config to Web `Request`.
 
@@ -120,9 +194,119 @@ The hybrid multi-tier storage engine.
 - **`options.maxMemorySize`**: Threshold (in bytes) for offloading bodies to disk (default `1048576`, i.e., 1MB).
 - **`options.storagePath`**: Disk storage path for the `cacache` engine (defaults to a system temp folder).
 
+### Utility Functions
+
+Exported from `@isdk/proxy` for advanced usage:
+
+#### `isMatch(pattern, value, usePrefix?)`
+
+Universal pattern matching function. Supports RegExp, Glob, array patterns (with negation), and string prefix/exact matching.
+
+- **`pattern`**: `string | RegExp | (string | RegExp)[]`
+- **`value`**: The string to test against
+- **`usePrefix`**: For plain strings, use prefix match instead of exact match (default: `false`)
+- **Returns**: `boolean`
+
+```typescript
+import { isMatch } from '@isdk/proxy';
+
+isMatch('/api/v[12]/.*', '/api/v1/users');     // RegExp
+isMatch('/api/**/*.json', '/api/v1/data.json'); // Glob
+isMatch(['!/private/**', '/api/**'], '/api/data'); // Negation
+```
+
+#### `isGlob(pattern)`
+
+Check if a pattern is Glob syntax.
+
+- **`pattern`**: `string`
+- **Returns**: `boolean`
+
+#### `getSiteConfig(urlString, proxyConfig)`
+
+Get the site-specific cache configuration for a given URL.
+
+- **`urlString`**: Full URL to match
+- **`proxyConfig`**: `ProxyConfig` object with `sites` and `default` config
+- **Returns**: `SiteCacheConfig`
+
+```typescript
+import { getSiteConfig } from '@isdk/proxy';
+
+const config = getSiteConfig('https://api.example.com/data', {
+  default: { methods: ['GET'] },
+  sites: {
+    'api.example.com': { methods: ['GET', 'POST'], forceCache: true },
+    '/internal/': { staleIfError: true } // prefix match
+  }
+});
+```
+
+#### `isAllowed(key, config, defaultAllowed?)`
+
+Check if a key is allowed to participate in cache key fingerprinting.
+
+- **`key`**: The key name to check
+- **`config`**: `KeyFilterConfig` with `include` (whitelist) or `exclude` (blacklist)
+- **`defaultAllowed`**: Optional. Default value when no config or no match
+- **Returns**: `boolean | undefined`
+
+**Priority Logic**:
+
+1. `exclude` hit → returns `false` (highest priority)
+2. `include` exists and hits → returns `true`
+3. `include` exists but no hit → returns `false`
+4. No config → uses `defaultAllowed` (returns `undefined` if not provided)
+
+```typescript
+import { isAllowed } from '@isdk/proxy';
+
+// No config
+isAllowed('key'); // undefined (falsy)
+
+// Whitelist
+isAllowed('id', { include: ['id', 'name'] }); // true
+isAllowed('email', { include: ['id', 'name'] }); // false
+
+// Blacklist
+isAllowed('password', { exclude: ['password'] }); // false
+isAllowed('name', { exclude: ['password'] }); // undefined (falsy)
+
+// Need defaultAllowed to set default
+isAllowed('name', { exclude: ['password'] }, true); // true
+```
+
+#### `extractData(source, config, defaultAllowed?)`
+
+Extract and normalize data from a source object based on filter config. Used for generating cache fingerprints.
+
+- **`source`**: Original data object (Query, Headers, Cookies, etc.)
+- **`config`**: `KeyFilterConfig` object
+- **`defaultAllowed`**: Optional. Whether to allow extraction when no config or no match (default `false`)
+- **Returns**: `Record<string, string[]>` normalized data with lowercase keys and sorted array values
+
+```typescript
+import { extractData } from '@isdk/proxy';
+
+const headers = { 'Content-Type': 'application/json', 'X-Request-Id': '123' };
+
+// No extraction by default
+extractData(headers); // {}
+
+// Extract all keys
+extractData(headers, undefined, true); // { 'content-type': ['application/json'], 'x-request-id': ['123'] }
+
+// Whitelist
+extractData(headers, { include: ['content-type'] }); // { 'content-type': ['application/json'] }
+
+// Blacklist
+extractData(headers, { include: ['*'], exclude: ['x-request-id'] }, true); // { 'content-type': ['application/json'] }
+```
+
 ### Cache Status Headers
 
 Every response processed by `@isdk/proxy` will include an `x-proxy-cache` header indicating its lifecycle:
+
 - `HIT`: Served entirely from L1 or L2 cache.
 - `MISS`: Bypassed cache and fetched from the origin server.
 - `STALE`: Served from stale cache while a background update was initiated (SWR).

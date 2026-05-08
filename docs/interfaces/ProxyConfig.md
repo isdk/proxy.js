@@ -6,7 +6,7 @@
 
 # Interface: ProxyConfig
 
-Defined in: [types.ts:63](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L63)
+Defined in: [types.ts:145](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L145)
 
 代理拦截器全局配置
 
@@ -16,7 +16,7 @@ Defined in: [types.ts:63](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe
 
 > **default**: [`SiteCacheConfig`](SiteCacheConfig.md)
 
-Defined in: [types.ts:65](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L65)
+Defined in: [types.ts:147](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L147)
 
 默认缓存配置，当请求的域名未在 sites 中匹配时使用
 
@@ -26,7 +26,7 @@ Defined in: [types.ts:65](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe
 
 > **sites**: `Record`\<`string`, [`SiteCacheConfig`](SiteCacheConfig.md)\>
 
-Defined in: [types.ts:67](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L67)
+Defined in: [types.ts:149](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L149)
 
 针对特定域名的精细化缓存配置
 
@@ -36,6 +36,6 @@ Defined in: [types.ts:67](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe
 
 > `optional` **storagePath**: `string`
 
-Defined in: [types.ts:69](https://github.com/isdk/proxy.js/blob/bed37fa43507dcbe5cdfa453876163571399d761/src/types.ts#L69)
+Defined in: [types.ts:151](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L151)
 
 磁盘缓存（cacache）的物理存储路径，可选，默认为系统临时目录
