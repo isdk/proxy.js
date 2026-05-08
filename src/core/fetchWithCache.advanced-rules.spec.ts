@@ -16,12 +16,12 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持路径正则匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('path-regex');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       cacheRules: [
         { path: /^\/api\/v[12]\// }
       ]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
@@ -41,12 +41,12 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持路径 Glob 匹配 (含否定 !)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('path-glob');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       cacheRules: [
         { path: '/api/**/!(private)*' }
       ]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
@@ -62,12 +62,12 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持 Query 值正则匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('query-regex');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       cacheRules: [
         { query: { type: /^(user|admin)$/ } }
       ]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
@@ -83,20 +83,20 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持 Body 内容正则匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-match');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       methods: ['POST'],
       cacheRules: [
         { method: 'POST', body: /"action":"cache"/ }
       ]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
 
     // 匹配 body
-    const req1 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req1 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'cache', data: 1 })
     });
@@ -104,8 +104,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
     expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
 
     // 不匹配 body
-    const req2 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req2 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'bypass', data: 1 })
     });
@@ -115,25 +115,25 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('generateCacheKey 应该支持非 JSON Body 的正则提取', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-extract');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       methods: ['POST'],
       body: {
         extract: /op=([^&]+)&id=([^&]+)/
       }
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
 
     // 两个请求，op 和 id 相同，但 nonce 不同
-    const req1 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req1 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'op=get&id=1&nonce=abc'
     });
-    const req2 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req2 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'op=get&id=1&nonce=xyz'
     });
@@ -150,12 +150,12 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('KeyFilterConfig 应该支持正则包含/排除', async () => {
     const { cache, activeCacheWrites } = await createTestCache('key-filter-regex');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       query: {
         exclude: [/^utm_/, 'timestamp']
       }
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
@@ -172,20 +172,20 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持 bodyType 约束', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-type-constraint');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       methods: ['POST'],
       cacheRules: [
         { method: 'POST', bodyType: 'json', body: /"ok":true/ }
       ]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
 
     // 1. 类型匹配且内容匹配
-    const req1 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req1 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ok: true })
     });
@@ -193,8 +193,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
     expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
 
     // 2. 类型不匹配 (虽然内容匹配)
-    const req2 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req2 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: '{"ok":true}'
     });
@@ -204,12 +204,12 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('KeyFilterConfig 应该支持 Glob 模式', async () => {
     const { cache, activeCacheWrites } = await createTestCache('key-filter-glob');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       headers: {
         exclude: ['x-dynamic-*']
       }
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
@@ -229,19 +229,19 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('body 提取应该支持多个捕获组并用冒号拼接', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-multi-groups');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       methods: ['POST'],
       body: {
         extract: /action=([^&]+).*?id=([^&]+)/
       }
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
 
-    const req1 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req1 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'action=upload&other=foo&id=99'
     });
@@ -251,8 +251,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
     await Promise.all(activeCacheWrites.values());
 
     // 只要 action 和 id 相同，中间的 other 不同也不影响命中
-    const req2 = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req2 = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'action=upload&id=99&other=bar'
     });
@@ -260,42 +260,44 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
     expect(res2.headers.get('x-proxy-cache')).toBe('HIT');
   });
 
-  it('maxBodyMatchLength 应该限制匹配范围', async () => {
+  it('body maxLength 应该限制匹配范围', async () => {
     const { cache, activeCacheWrites } = await createTestCache('max-body-length');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       methods: ['POST'],
-      maxBodyMatchLength: 10,
+      body: {
+        maxLength: 10
+      },
       cacheRules: [
         { method: 'POST', body: '*findme*' }
       ]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
 
     // 1. 关键词在头 10 个字符内
-    const res1 = await fetchWithCache(new Request('https://api.com/', { 
-      method: 'POST', body: '012findme89' 
+    const res1 = await fetchWithCache(new Request('https://api.com/', {
+      method: 'POST', body: '012findme89'
     }), mockFetcher, { cache, config, activeCacheWrites });
     expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
 
     // 2. 关键词在 10 个字符之后
-    const res2 = await fetchWithCache(new Request('https://api.com/', { 
-      method: 'POST', body: '0123456789_findme' 
+    const res2 = await fetchWithCache(new Request('https://api.com/', {
+      method: 'POST', body: '0123456789_findme'
     }), mockFetcher, { cache, config, activeCacheWrites });
     expect(res2.headers.get('x-proxy-cache')).toBeNull();
   });
 
   it('应该支持深层 Glob 排除逻辑', async () => {
     const { cache, activeCacheWrites } = await createTestCache('deep-glob-exclude');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       cacheRules: [
         // 使用数组模式，利用 picomatch 的多模式匹配能力
         { path: ['/api/**/*.json', '!**/private/**'] }
       ]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
@@ -303,7 +305,7 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
     // 匹配
     const res1 = await fetchWithCache(new Request('https://api.com/api/v1/users/list.json'), mockFetcher, { cache, config, activeCacheWrites });
     expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
-    
+
     // 不匹配 (包含 private 路径段)
     const res2 = await fetchWithCache(new Request('https://api.com/api/v1/private/users/list.json'), mockFetcher, { cache, config, activeCacheWrites });
     expect(res2.headers.get('x-proxy-cache')).toBeNull();
@@ -311,46 +313,46 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('Body 正则提取应该支持排序以消除顺序敏感', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-extract-sort');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       methods: ['POST'],
       body: {
         extract: /(?:op|id)=([^&]+).*(?:op|id)=([^&]+)/,
         sort: true
       }
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
 
     // 请求 1: op 前, id 后
-    const res1 = await fetchWithCache(new Request('https://api.com/', { 
-      method: 'POST', body: 'op=get&id=1' 
+    const res1 = await fetchWithCache(new Request('https://api.com/', {
+      method: 'POST', body: 'op=get&id=1'
     }), mockFetcher, { cache, config, activeCacheWrites });
     await res1.text();
     await Promise.all(activeCacheWrites.values());
 
     // 请求 2: id 前, op 后，但值相同。开启 sort 后应该命中。
-    const res2 = await fetchWithCache(new Request('https://api.com/', { 
-      method: 'POST', body: 'id=1&op=get' 
+    const res2 = await fetchWithCache(new Request('https://api.com/', {
+      method: 'POST', body: 'id=1&op=get'
     }), mockFetcher, { cache, config, activeCacheWrites });
-    
-    expect(res2.headers.get('x-proxy-cache')).toBe('HIT'); 
+
+    expect(res2.headers.get('x-proxy-cache')).toBe('HIT');
   });
 
   it('应该能正确处理带有参数的 Content-Type', async () => {
     const { cache, activeCacheWrites } = await createTestCache('content-type-params');
-    const config: SiteCacheConfig = { 
+    const config: SiteCacheConfig = {
       methods: ['POST'],
       cacheRules: [{ method: 'POST', bodyType: 'json' }]
     };
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
     }));
 
-    const req = new Request('https://api.com/', { 
-      method: 'POST', 
+    const req = new Request('https://api.com/', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ a: 1 })
     });

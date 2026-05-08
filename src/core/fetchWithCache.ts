@@ -170,10 +170,10 @@ async function isCacheable(request: Request, config: SiteCacheConfig): Promise<b
         // 匹配 Body 内容
         if (rule.body) {
           if (actualType === 'binary') return false; // 二进制 Body 不支持内容正则匹配
-          
+
           if (!bodyChecked) {
             try {
-              const limit = config.maxBodyMatchLength || 1024;
+              const limit = config.body?.maxLength || 1024;
               // 注意：由于 Request Body 只能读取一次，这里必须 clone
               // 且为了性能，我们只读取前 limit 个字符
               const fullText = await request.clone().text();
@@ -258,7 +258,7 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
   // 1. 创建并发控制的 Promise，并在真正 Fetch 前就注册，防止并发击穿
   let resolveWrite!: () => void;
   let rejectWrite!: (err: any) => void;
-  
+
   // 【警告】请勿使用 writePromise.finally() 来清理 Map！
   // 在 ES6 Promise 规范中，.finally() 会返回一个全新的 Promise 实例，并透传父级的 Reject 状态。
   // 如果在此处使用 .finally() 进行清理，一旦 Fetch 失败，它返回的新 Promise 会变成一个无人捕获的孤儿，
@@ -274,12 +274,12 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
       reject(err);
     };
   });
-  
+
   // 只有一条纯净的 Promise 链，在这里垫一个空的 catch。
   // 它的作用是：当后台异步更新（SWR）发起 Fetch 且遭遇网络错误时，由于没有别的并发请求在 await 它，
   // 这个垫底的 catch 能够阻止 Node.js 抛出全局的 Unhandled Rejection。
   // 注意：真正排队等待该请求的并发者，由于直接 await writePromise，依然能正常捕获到这个 Error。
-  writePromise.catch(() => { }); 
+  writePromise.catch(() => { });
 
   ctx.activeCacheWrites.set(ctx.cacheKey, writePromise);
 

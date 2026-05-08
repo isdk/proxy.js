@@ -10,6 +10,21 @@ export interface KeyFilterConfig {
   exclude?: (string | RegExp)[];
 }
 
+export interface BodyFilterConfig extends KeyFilterConfig {
+  /**
+   * 用于非 JSON (文本) Body 的提取正则表达式。
+   * 如果包含捕获组，则提取捕获组内容作为指纹；否则提取整个匹配部分。
+   */
+  extract?: string | RegExp;
+  /**
+   * 是否对提取出的捕获组进行排序。
+   * 开启后可解决 Body 中参数顺序不一致导致的指纹失效问题。
+   */
+  sort?: boolean;
+  /** 用于正则匹配/提取 Body 时的最大长度限制，默认 1024 (1KB) */
+  maxLength?: number;
+}
+
 /**
  * 精细化缓存匹配规则
  *
@@ -18,24 +33,24 @@ export interface KeyFilterConfig {
  * 在单个规则对象内部，各字段之间是 **AND (逻辑与)** 关系。
  */
 export interface CacheRule {
-  /** 
+  /**
    * 匹配的方法 (如 "POST")。
    * 如果指定，则必须方法完全一致；如果不指定，则匹配所有 `methods` 中允许的方法。
    */
   method?: string;
-  /** 
+  /**
    * 路径匹配。
    * - 字符串: 默认进行 Glob 模式匹配（支持 `!` 否定），若非 Glob 且非正则字符串则退化为前缀匹配。
    * - 正则表达式: 检查 `url.pathname` 是否匹配。
    */
-  /** 
+  /**
    * 路径匹配。
    * - 字符串: 默认进行 Glob 模式匹配（支持 `!` 否定），若非 Glob 且非正则字符串则退化为前缀匹配。
    * - 正则表达式: 检查 `url.pathname` 是否匹配。
    * - 数组: 支持传入多个模式（含否定模式），只要其中一个匹配即可。
    */
   path?: string | RegExp | (string | RegExp)[];
-  /** 
+  /**
    * Query 参数匹配规则。
    * - 键名: 支持字符串、Glob 或正则。
    * - 值:
@@ -64,13 +79,13 @@ export interface CacheRule {
  * 站点级缓存配置
  */
 export interface SiteCacheConfig {
-  /** 
+  /**
    * 允许缓存的 HTTP 方法列表。
    * 默认值: ['GET', 'HEAD']。
    * 若要缓存 POST/PUT，必须在此显式添加，并确保后端响应满足缓存条件（或开启 `forceCache`）。
    */
   methods?: string[];
-  /** 
+  /**
    * 精细化缓存规则列表。
    * 如果配置了此项，请求必须匹配其中至少一条规则才会被允许进入缓存流程。
    * 适用于只希望缓存特定 API 接口的场景。
@@ -82,24 +97,11 @@ export interface SiteCacheConfig {
   headers?: KeyFilterConfig;
   /** Cookie 过滤配置：决定哪些 Cookie 字段参与缓存指纹计算 */
   cookies?: KeyFilterConfig;
-  /** 
+  /**
    * 请求体过滤配置 (仅限 JSON 类型)。
    * 当方法为 POST/PUT/PATCH 且为 JSON 格式时，用于从 Body 中提取特定字段参与指纹计算。
    */
-  body?: KeyFilterConfig & {
-    /** 
-     * 用于非 JSON (文本) Body 的提取正则表达式。
-     * 如果包含捕获组，则提取捕获组内容作为指纹；否则提取整个匹配部分。
-     */
-    extract?: string | RegExp;
-    /**
-     * 是否对提取出的捕获组进行排序。
-     * 开启后可解决 Body 中参数顺序不一致导致的指纹失效问题。
-     */
-    sort?: boolean;
-  };
-  /** 用于正则匹配/提取 Body 时的最大长度限制，默认 1024 (1KB) */
-  maxBodyMatchLength?: number;
+  body?: BodyFilterConfig;
   /** 容错机制：当后端请求失败（网络错误或 5xx）且存在旧缓存时，是否强制返回旧缓存 */
   staleIfError?: boolean;
   /** 强制缓存：是否忽略 `Cache-Control: no-store` 等指令强制入库。 */

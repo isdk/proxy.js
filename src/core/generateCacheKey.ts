@@ -61,7 +61,7 @@ export async function generateCacheKey(req: Request, config: SiteCacheConfig): P
         bodyData = extractData(json, config.body, true);
       } else if (config.body?.extract && (contentType.includes('text/') || contentType.includes('application/xml') || contentType.includes('x-www-form-urlencoded'))) {
         // 非 JSON 文本类型，支持正则提取
-        const limit = config.maxBodyMatchLength || 1024;
+        const limit = config.body?.maxLength || 1024;
         const text = (await req.clone().text()).slice(0, limit);
         const extractPattern = config.body.extract;
         const regex = typeof extractPattern === 'string' && isRegExpStr(extractPattern)
