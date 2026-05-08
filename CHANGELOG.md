@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.2](https://github.com/isdk/proxy.js/compare/v0.1.1...v0.1.2) (2026-05-08)
+
+
+### Features
+
+* 迁移 SmartCache L1 缓存到 secondary-cache，支持 maxTotalMemorySize 内存限制 ([fdc4437](https://github.com/isdk/proxy.js/commit/fdc4437cc5c15b4d7a8d6b0cb5d892dc77fa8c1d))
+* 添加正则匹配和站点配置功能 ([c8b5a29](https://github.com/isdk/proxy.js/commit/c8b5a29885c11ff30026d6852cefa71e6553f260))
+* 支持 HTTP POST/PUT 缓存及精细化规则配置 ([7947e56](https://github.com/isdk/proxy.js/commit/7947e56504d9a4e1d392bd56b12d806b7095e5b7))
+
+
+### Bug Fixes
+
+* 修复并发请求合并时的错误处理和SWR重复触发问题 ([12185e1](https://github.com/isdk/proxy.js/commit/12185e12b99f5c688221f4cfc820c6eb17571dcd))
+
+
+### Refactor
+
+* **types:** 重构 BodyFilterConfig 类型定义 ([6b71e80](https://github.com/isdk/proxy.js/commit/6b71e80ca2c47c728a00f2101ccbd71624c711e4))
+
 ## 0.1.1 (2026-05-07)
 
 
