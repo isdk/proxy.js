@@ -92,9 +92,43 @@ const myPostFetch = createCachedFetch({
 | `forceCache` | `boolean` | 是否无视源站指令强制执行缓存，常用于离线应用。 |
 
 ### `CacheRule` 规则对象
+
 - `method`: 匹配的 HTTP 方法。
-- `path`: 路径前缀匹配（如 `/api/`）。
-- `query`: 键值对匹配。值可以是 `string`（全等匹配）、`true`（参数必须存在）、`false`（参数必须不存在）。
+- `path`: 路径匹配（支持**正则表达式**、**Glob 通配符**、**数组格式**或**前缀匹配**）。
+- `query`: 键值对匹配。值可以是 `string`（全等/Glob匹配）、`true`（参数必须存在）、`false`（参数必须不存在）、或 `RegExp`（正则匹配）。
+- `body`: Body 内容匹配（支持**正则表达式**、**Glob 通配符**或**数组格式**）。
+
+### 模式匹配说明
+
+`@isdk/proxy` 为所有可配置字段提供强大的模式匹配能力：
+
+| 模式类型 | 示例 | 说明 |
+| :--- | :--- | :--- |
+| **正则表达式** | `/api/v[12]/.*/i` | JavaScript 正则（JSON 中用字符串表示，如 `"/api/v[12]/.*/i"`） |
+| **Glob 通配符** | `/**/*.json` | 文件路径风格通配符匹配 |
+| **否定模式** | `['!/api/private/**', '/api/**']` | 排除匹配（以 `!` 开头） |
+| **数组格式** | `['/api/v1/*', '/api/v2/*']` | 多模式组合（OR 逻辑，负向优先） |
+| **布尔值** | `true` / `false` | 用于 query 参数：必须存在/不存在 |
+
+**高级模式匹配示例：**
+
+```typescript
+const myFetch = createCachedFetch({
+  cache,
+  config: {
+    cacheRules: [
+      { 
+        path: ['/api/v1/items/*', '!/api/v1/items/private/*'], // v1 items，排除 private
+        query: { 
+          format: '/^(json|xml)$/',     // 正则匹配 format 参数
+          'page*': true                  // Glob：任何以 page 开头的参数必须存在
+        },
+        body: /\"action\"\s*:\s*\"query\"/ // 正则匹配 Body 内容
+      }
+    ]
+  }
+});
+```
 
 ## 适配器 (Adapters)
 
@@ -161,6 +195,114 @@ const myPostFetch = createCachedFetch({
 - `new SmartCache(options)`
 - **`options.maxMemorySize`**: 响应体进入内存 (L1) 的大小阈值（字节），超过此大小的文件将直接进入磁盘流传输（默认 `1048576` 即 1MB）。
 - **`options.storagePath`**: 磁盘 L2 缓存（cacache）的物理存储路径（默认为操作系统的临时目录）。
+
+### 工具函数
+
+导出以下工具函数供高级用法：
+
+#### `isMatch(pattern, value, usePrefix?)`
+
+通用模式匹配函数。支持正则表达式、Glob、数组模式（含否定）和字符串前缀/精确匹配。
+
+- **`pattern`**: `string | RegExp | (string | RegExp)[]`
+- **`value`**: 要测试的字符串
+- **`usePrefix`**: 对于普通字符串，是否使用前缀匹配而非精确匹配（默认：`false`）
+- **返回值**: `boolean`
+
+```typescript
+import { isMatch } from '@isdk/proxy';
+
+isMatch('/api/v[12]/.*', '/api/v1/users');     // 正则表达式
+isMatch('/api/**/*.json', '/api/v1/data.json'); // Glob 通配符
+isMatch(['!/private/**', '/api/**'], '/api/data'); // 否定模式
+```
+
+#### `isGlob(pattern)`
+
+判断字符串是否为 Glob 语法。
+
+- **`pattern`**: `string`
+- **返回值**: `boolean`
+
+#### `getSiteConfig(urlString, proxyConfig)`
+
+根据 URL 获取对应的站点级缓存配置。
+
+- **`urlString`**: 完整的请求 URL
+- **`proxyConfig`**: 包含 `sites` 和 `default` 配置的 `ProxyConfig` 对象
+- **返回值**: `SiteCacheConfig`
+
+```typescript
+import { getSiteConfig } from '@isdk/proxy';
+
+const config = getSiteConfig('https://api.example.com/data', {
+  default: { methods: ['GET'] },
+  sites: {
+    'api.example.com': { methods: ['GET', 'POST'], forceCache: true },
+    '/internal/': { staleIfError: true } // 前缀匹配
+  }
+});
+```
+
+#### `isAllowed(key, config, defaultAllowed?)`
+
+判断指定的键是否允许参与缓存指纹计算。
+
+- **`key`**: 要检查的键名
+- **`config`**: `KeyFilterConfig` 对象，支持 `include`（白名单）或 `exclude`（黑名单）
+- **`defaultAllowed`**: 可选参数。当没有配置或配置未命中时使用的默认值
+- **返回值**: `boolean | undefined`
+
+**优先级逻辑**：
+1. `exclude` 命中 → 直接返回 `false`（优先级最高）
+2. `include` 存在且命中 → 返回 `true`
+3. `include` 存在但不命中 → 返回 `false`
+4. 都没有配置 → 使用 `defaultAllowed`（未传则返回 `undefined`）
+
+```typescript
+import { isAllowed } from '@isdk/proxy';
+
+// 无配置
+isAllowed('key'); // undefined (falsy)
+
+// 白名单
+isAllowed('id', { include: ['id', 'name'] }); // true
+isAllowed('email', { include: ['id', 'name'] }); // false
+
+// 黑名单
+isAllowed('password', { exclude: ['password'] }); // false
+isAllowed('name', { exclude: ['password'] }); // undefined (falsy)
+
+// 需要 defaultAllowed 来设置默认值
+isAllowed('name', { exclude: ['password'] }, true); // true
+```
+
+#### `extractData(source, config, defaultAllowed?)`
+
+从源对象中根据过滤配置提取数据并标准化。用于生成缓存指纹。
+
+- **`source`**: 原始数据对象（Query、Headers、Cookies 等）
+- **`config`**: `KeyFilterConfig` 对象
+- **`defaultAllowed`**: 可选参数。当没有配置或配置未命中时，是否允许提取（默认 `false`）
+- **返回值**: `Record<string, string[]>` 标准化后的数据，键为小写，值为排序后的数组
+
+```typescript
+import { extractData } from '@isdk/proxy';
+
+const headers = { 'Content-Type': 'application/json', 'X-Request-Id': '123' };
+
+// 默认不提取任何键
+extractData(headers); // {}
+
+// 提取所有键
+extractData(headers, undefined, true); // { 'content-type': ['application/json'], 'x-request-id': ['123'] }
+
+// 白名单
+extractData(headers, { include: ['content-type'] }); // { 'content-type': ['application/json'] }
+
+// 黑名单
+extractData(headers, { include: ['*'], exclude: ['x-request-id'] }, true); // { 'content-type': ['application/json'] }
+```
 
 ### 缓存状态标头 (Cache Status Headers)
 

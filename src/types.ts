@@ -4,10 +4,10 @@
  * 用于定义在生成缓存指纹时，哪些字段应该被包含或排除。
  */
 export interface KeyFilterConfig {
-  /** 仅包含（白名单）：如果设置，只有这些字段会参与 Key 的计算 */
-  include?: string[];
-  /** 排除（黑名单）：用于排除像 `timestamp`、`nonce` 等干扰缓存命中的动态字段 */
-  exclude?: string[];
+  /** 仅包含（白名单）：如果设置，只有这些字段会参与 Key 的计算。支持字符串、Glob 模式或正则表达式。 */
+  include?: (string | RegExp)[];
+  /** 排除（黑名单）：用于排除像 `timestamp`、`nonce` 等干扰缓存命中的动态字段。支持字符串、Glob 模式或正则表达式。 */
+  exclude?: (string | RegExp)[];
 }
 
 /**
@@ -24,17 +24,40 @@ export interface CacheRule {
    */
   method?: string;
   /** 
-   * 路径前缀匹配 (如 "/api/")。
-   * 检查 `url.pathname` 是否以此字符串开头。
+   * 路径匹配。
+   * - 字符串: 默认进行 Glob 模式匹配（支持 `!` 否定），若非 Glob 且非正则字符串则退化为前缀匹配。
+   * - 正则表达式: 检查 `url.pathname` 是否匹配。
    */
-  path?: string;
+  /** 
+   * 路径匹配。
+   * - 字符串: 默认进行 Glob 模式匹配（支持 `!` 否定），若非 Glob 且非正则字符串则退化为前缀匹配。
+   * - 正则表达式: 检查 `url.pathname` 是否匹配。
+   * - 数组: 支持传入多个模式（含否定模式），只要其中一个匹配即可。
+   */
+  path?: string | RegExp | (string | RegExp)[];
   /** 
    * Query 参数匹配规则。
-   * - 字符串: 要求该参数的值与给定字符串完全相等。
-   * - `true`: 要求该参数必须存在于 URL 中。
-   * - `false`: 要求该参数必须 **不** 存在于 URL 中。
+   * - 键名: 支持字符串、Glob 或正则。
+   * - 值:
+   *   - 字符串: 支持 Glob 模式匹配。
+   *   - 正则表达式: 检查参数值是否匹配。
+   *   - `true`: 要求该参数必须存在于 URL 中。
+   *   - `false`: 要求该参数必须 **不** 存在于 URL 中。
    */
-  query?: Record<string, string | boolean>;
+  query?: Record<string, string | boolean | RegExp>;
+  /**
+   * 强制指定 Body 类型。
+   * 如果不指定，则根据 `Content-Type` 自动判断。
+   */
+  bodyType?: 'json' | 'text' | 'binary';
+  /**
+   * Body 内容匹配。
+   * 仅当 Body 为文本或 JSON 时有效。
+   * - 字符串: 支持 Glob 模式匹配。
+   * - 正则表达式: 检查 Body 内容是否匹配。
+   * - 数组: 支持传入多个模式。
+   */
+  body?: string | RegExp | (string | RegExp)[];
 }
 
 /**
@@ -62,12 +85,24 @@ export interface SiteCacheConfig {
   /** 
    * 请求体过滤配置 (仅限 JSON 类型)。
    * 当方法为 POST/PUT/PATCH 且为 JSON 格式时，用于从 Body 中提取特定字段参与指纹计算。
-   * 能够有效过滤掉 Body 中的随机数或时间戳，提高缓存命中率。
    */
-  body?: KeyFilterConfig;
+  body?: KeyFilterConfig & {
+    /** 
+     * 用于非 JSON (文本) Body 的提取正则表达式。
+     * 如果包含捕获组，则提取捕获组内容作为指纹；否则提取整个匹配部分。
+     */
+    extract?: string | RegExp;
+    /**
+     * 是否对提取出的捕获组进行排序。
+     * 开启后可解决 Body 中参数顺序不一致导致的指纹失效问题。
+     */
+    sort?: boolean;
+  };
+  /** 用于正则匹配/提取 Body 时的最大长度限制，默认 1024 (1KB) */
+  maxBodyMatchLength?: number;
   /** 容错机制：当后端请求失败（网络错误或 5xx）且存在旧缓存时，是否强制返回旧缓存 */
   staleIfError?: boolean;
-  /** 强制缓存：是否忽略 `Cache-Control: no-store` 等指令强制入库。适用于离线优先或对响应头不可控的场景。 */
+  /** 强制缓存：是否忽略 `Cache-Control: no-store` 等指令强制入库。 */
   forceCache?: boolean;
 }
 

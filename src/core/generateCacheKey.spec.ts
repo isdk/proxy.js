@@ -107,4 +107,130 @@ describe('generateCacheKey', () => {
 
     expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
   });
+
+  // ========== 新增测试：正则/Glob 模式匹配 ==========
+
+  it('Query 正则排除应该生效', async () => {
+    const config: SiteCacheConfig = {
+      query: { exclude: [/^utm_/, /^_/] }
+    };
+
+    const req1 = new Request('https://example.com/?id=1&utm_source=google&utm_campaign=test');
+    const req2 = new Request('https://example.com/?id=1&utm_source=twitter&utm_campaign=other');
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
+  });
+
+  it('Headers Glob 排除应该生效', async () => {
+    const config: SiteCacheConfig = {
+      headers: { exclude: ['x-dynamic-*'] }
+    };
+
+    const req1 = new Request('https://example.com/', { headers: { 'x-dynamic-id': '123' } });
+    const req2 = new Request('https://example.com/', { headers: { 'x-dynamic-id': '456' } });
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
+  });
+
+  it('应该默认排除 cookie header', async () => {
+    const config: SiteCacheConfig = {};
+
+    const req1 = new Request('https://example.com/', { headers: { 'cookie': 'session=abc' } });
+    const req2 = new Request('https://example.com/', { headers: { 'cookie': 'session=xyz' } });
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
+  });
+
+  it('非 JSON body 正则提取应该生效', async () => {
+    const config: SiteCacheConfig = {
+      methods: ['POST'],
+      body: {
+        extract: /op=([^&]+)&id=([^&]+)/
+      }
+    };
+
+    const req1 = new Request('https://example.com/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'op=get&id=1&nonce=abc'
+    });
+    const req2 = new Request('https://example.com/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'op=get&id=1&nonce=xyz'
+    });
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
+  });
+
+  it('多捕获组应该用冒号拼接', async () => {
+    const config: SiteCacheConfig = {
+      methods: ['POST'],
+      body: {
+        extract: /action=([^&]+).*?id=([^&]+)/
+      }
+    };
+
+    const req1 = new Request('https://example.com/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'action=upload&other=foo&id=99'
+    });
+    const req2 = new Request('https://example.com/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'action=upload&id=99&other=bar'
+    });
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
+  });
+
+  it('捕获组排序应该消除顺序差异', async () => {
+    const config: SiteCacheConfig = {
+      methods: ['POST'],
+      body: {
+        extract: /(?:op|id)=([^&]+).*(?:op|id)=([^&]+)/,
+        sort: true
+      }
+    };
+
+    const req1 = new Request('https://example.com/', {
+      method: 'POST',
+      body: 'op=get&id=1'
+    });
+    const req2 = new Request('https://example.com/', {
+      method: 'POST',
+      body: 'id=1&op=get'
+    });
+
+    expect(await generateCacheKey(req1, config)).toBe(await generateCacheKey(req2, config));
+  });
+
+  it('不同 URL 应该生成不同的 Key', async () => {
+    const req1 = new Request('https://example.com/api?a=1');
+    const req2 = new Request('https://example.com/api?a=2');
+
+    expect(await generateCacheKey(req1, defaultConfig)).not.toBe(await generateCacheKey(req2, defaultConfig));
+  });
+
+  it('不同 Host 应该生成不同的 Key', async () => {
+    const req1 = new Request('https://api.example.com/');
+    const req2 = new Request('https://api.other.com/');
+
+    expect(await generateCacheKey(req1, defaultConfig)).not.toBe(await generateCacheKey(req2, defaultConfig));
+  });
+
+  it('不同 Pathname 应该生成不同的 Key', async () => {
+    const req1 = new Request('https://example.com/api/v1');
+    const req2 = new Request('https://example.com/api/v2');
+
+    expect(await generateCacheKey(req1, defaultConfig)).not.toBe(await generateCacheKey(req2, defaultConfig));
+  });
+
+  it('应该生成 64 位十六进制哈希', async () => {
+    const req = new Request('https://example.com/api');
+    const key = await generateCacheKey(req, defaultConfig);
+
+    expect(key).toMatch(/^[a-f0-9]{64}$/);
+  });
 });

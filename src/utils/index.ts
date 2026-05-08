@@ -5,3 +5,5 @@
 
 export * from './extractData';
 export * from './isAllowed';
+export * from './matcher';
+export * from './getSiteConfig';

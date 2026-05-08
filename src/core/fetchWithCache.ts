@@ -3,7 +3,8 @@ import { pipeline } from 'stream/promises';
 import CachePolicy from 'http-cache-semantics';
 import type { SmartCache } from './SmartCache';
 import { generateCacheKey } from './generateCacheKey';
-import { SiteCacheConfig, CacheMetadata, CacheEntry } from '../types';
+import { SiteCacheConfig, CacheMetadata, CacheEntry, CacheRule } from '../types';
+import { isMatch } from '../utils';
 
 /**
  * fetchWithCache 选项
@@ -89,15 +90,16 @@ async function buildFetchWithCacheContext(
  * 该函数执行两阶段过滤：
  * 1. **方法过滤**: 检查请求方法是否在 `allowedMethods` 配置列表中（默认为 GET, HEAD）。
  * 2. **规则过滤**: 如果配置了 `cacheRules`，请求必须匹配其中至少一条规则。
- *    - 支持路径前缀匹配 (`path`)。
+ *    - 支持路径匹配 (`path`)：支持正则、Glob (含否定 `!`) 及前缀匹配。
  *    - 支持方法精确匹配 (`method`)。
- *    - 支持复杂的查询参数匹配 (`query`)，包括全等匹配、必须存在(true)及必须不存在(false)。
+ *    - 支持复杂的查询参数匹配 (`query`)，键值对均支持正则和 Glob。
+ *    - 支持 Body 类型判定 (`bodyType`) 及内容匹配 (`body`)。
  *
  * @param request - 原始 Web 标准 Request 对象
  * @param config - 站点级缓存配置
  * @returns 如果请求允许进入缓存流程则返回 true，否则返回 false 直接穿透至源站
  */
-function isCacheable(request: Request, config: SiteCacheConfig): boolean {
+async function isCacheable(request: Request, config: SiteCacheConfig): Promise<boolean> {
   const method = request.method.toUpperCase();
   const allowedMethods = config.methods || ['GET', 'HEAD'];
 
@@ -110,35 +112,86 @@ function isCacheable(request: Request, config: SiteCacheConfig): boolean {
   if (config.cacheRules && config.cacheRules.length > 0) {
     const url = new URL(request.url);
     const searchParams = url.searchParams;
+    let bodyText: string | null = null;
+    let bodyChecked = false;
 
-    return config.cacheRules.some(rule => {
+    for (const rule of config.cacheRules) {
+      if (await matchRule(rule, method, url, searchParams, request)) {
+        return true;
+      }
+    }
+    return false;
+
+    async function matchRule(
+      rule: CacheRule,
+      method: string,
+      url: URL,
+      searchParams: URLSearchParams,
+      request: Request
+    ): Promise<boolean> {
       // 匹配方法 (如果 rule 指定了方法)
       if (rule.method && rule.method.toUpperCase() !== method) {
         return false;
       }
 
-      // 匹配路径 (前缀匹配)
-      if (rule.path && !url.pathname.startsWith(rule.path)) {
+      // 匹配路径
+      if (rule.path && !isMatch(rule.path, url.pathname, true)) {
         return false;
       }
 
       // 匹配 Query 参数
       if (rule.query) {
-        for (const [key, value] of Object.entries(rule.query)) {
+        for (const [key, pattern] of Object.entries(rule.query)) {
           const hasParam = searchParams.has(key);
-          const paramValue = searchParams.get(key);
+          const paramValue = searchParams.get(key) || '';
 
-          if (typeof value === 'boolean') {
-            if (value && !hasParam) return false;
-            if (!value && hasParam) return false;
-          } else if (typeof value === 'string') {
-            if (paramValue !== value) return false;
+          if (typeof pattern === 'boolean') {
+            if (pattern && !hasParam) return false;
+            if (!pattern && hasParam) return false;
+          } else {
+            if (!isMatch(pattern, paramValue)) return false;
+          }
+        }
+      }
+
+      // 匹配 Body 类型 (如果指定)
+      if (rule.bodyType || rule.body) {
+        const contentType = request.headers.get('content-type') || '';
+        const actualType = contentType.includes('application/json')
+          ? 'json'
+          : (contentType.includes('text/') || contentType.includes('application/xml') || contentType.includes('x-www-form-urlencoded'))
+            ? 'text'
+            : 'binary';
+
+        if (rule.bodyType && rule.bodyType !== actualType) {
+          return false;
+        }
+
+        // 匹配 Body 内容
+        if (rule.body) {
+          if (actualType === 'binary') return false; // 二进制 Body 不支持内容正则匹配
+          
+          if (!bodyChecked) {
+            try {
+              const limit = config.maxBodyMatchLength || 1024;
+              // 注意：由于 Request Body 只能读取一次，这里必须 clone
+              // 且为了性能，我们只读取前 limit 个字符
+              const fullText = await request.clone().text();
+              bodyText = fullText.slice(0, limit);
+            } catch (e) {
+              bodyText = '';
+            }
+            bodyChecked = true;
+          }
+
+          if (!bodyText || !isMatch(rule.body, bodyText)) {
+            return false;
           }
         }
       }
 
       return true;
-    });
+    }
   }
 
   return true;
@@ -150,7 +203,7 @@ function isCacheable(request: Request, config: SiteCacheConfig): boolean {
 function evaluateCachePolicy(ctx: FetchWithCacheContext, entry: CacheEntry): 'HIT' | 'STALE' | 'MISS' {
   const policy = CachePolicy.fromObject(entry.policy);
   const reqForPolicy = {
-    url: ctx.request.url,
+    url: entry.url, // 使用缓存条目中的原始 URL，确保 http-cache-semantics 判定一致
     method: ctx.request.method,
     headers: Object.fromEntries(ctx.request.headers)
   };
@@ -315,7 +368,7 @@ export async function fetchWithCache(
   options: FetchWithCacheOptions
 ): Promise<Response> {
   // 0. 判断当前请求是否允许缓存
-  if (!isCacheable(request, options.config)) {
+  if (!(await isCacheable(request, options.config))) {
     return fetcher(request);
   }
 

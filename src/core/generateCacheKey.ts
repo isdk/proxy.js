@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { isRegExpStr, toRegExp } from 'util-ex';
 import { extractData } from '../utils';
 import { SiteCacheConfig } from '../types';
 
@@ -57,9 +58,35 @@ export async function generateCacheKey(req: Request, config: SiteCacheConfig): P
       if (contentType.includes('application/json')) {
         // 克隆请求以读取 Body，避免消耗原始请求流
         const json = await req.clone().json();
-        bodyData = extractData(json, config.body);
+        bodyData = extractData(json, config.body, true);
+      } else if (config.body?.extract && (contentType.includes('text/') || contentType.includes('application/xml') || contentType.includes('x-www-form-urlencoded'))) {
+        // 非 JSON 文本类型，支持正则提取
+        const limit = config.maxBodyMatchLength || 1024;
+        const text = (await req.clone().text()).slice(0, limit);
+        const extractPattern = config.body.extract;
+        const regex = typeof extractPattern === 'string' && isRegExpStr(extractPattern)
+          ? toRegExp(extractPattern)
+          : (extractPattern instanceof RegExp ? extractPattern : null);
+
+        if (regex) {
+          const match = text.match(regex);
+          if (match) {
+            if (match.length > 1) {
+              const groups = match.slice(1);
+              if (config.body?.sort) {
+                groups.sort();
+              }
+              bodyData = groups.join(':');
+            } else {
+              bodyData = match[0];
+            }
+          }
+        } else {
+          // 如果配置了提取但不是有效的正则，回退到全量哈希
+          bodyData = createHash('sha256').update(text).digest('hex');
+        }
       } else {
-        // 非 JSON 类型或无法解析时，回退到对原始 Body 取哈希
+        // 其他类型或未配置提取时，回退到对原始 Body 取哈希
         const buffer = await req.clone().arrayBuffer();
         if (buffer.byteLength > 0) {
           bodyData = createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
@@ -74,7 +101,7 @@ export async function generateCacheKey(req: Request, config: SiteCacheConfig): P
     m: method,
     h: url.host,
     p: url.pathname,
-    q: extractData(Object.fromEntries(url.searchParams), config.query),
+    q: extractData(Object.fromEntries(url.searchParams), config.query, true),
     hd: extractData(Object.fromEntries(req.headers), {
       ...config.headers,
       exclude: [...(config.headers?.exclude || []), 'cookie']

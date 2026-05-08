@@ -96,8 +96,41 @@ const myPostFetch = createCachedFetch({
 ### `CacheRule` Object
 
 - `method`: HTTP method to match.
-- `path`: URL pathname prefix (e.g., `/api/`).
-- `query`: Key-value pairs. Values can be `string` (exact match), `true` (must exist), or `false` (must not exist).
+- `path`: URL pathname matching (supports **RegExp**, **Glob**, **Array**, or **prefix match**).
+- `query`: Key-value pairs. Values can be `string` (exact/Glob match), `true` (must exist), `false` (must not exist), or `RegExp`.
+- `body`: Body content matching (supports **RegExp**, **Glob**, or **Array**).
+
+### Pattern Matching
+
+`@isdk/proxy` provides powerful pattern matching for all configurable fields:
+
+| Pattern Type | Example | Description |
+| :--- | :--- | :--- |
+| **RegExp** | `/api/v[12]/.*/i` | JavaScript RegExp (in JSON, use string like `"/api/v[12]/.*/i"`) |
+| **Glob** | `/**/*.json` | File path style wildcard matching |
+| **Negation** | `['!/api/private/**', '/api/**']` | Exclude patterns (prefixed with `!`, checked first) |
+| **Array** | `['/api/v1/*', '/api/v2/*']` | Multiple patterns (OR logic, negative takes precedence) |
+| **Boolean** | `true` / `false` | For query params: must/must not exist |
+
+**Example with advanced pattern matching:**
+
+```typescript
+const myFetch = createCachedFetch({
+  cache,
+  config: {
+    cacheRules: [
+      {
+        path: ['/api/v1/items/*', '!/api/v1/items/private/*'], // v1 items, exclude private
+        query: {
+          format: '/^(json|xml)$/',     // Regex for format param
+          'page*': true                  // Glob: any param starting with 'page' must exist
+        },
+        body: /\"action\"\s*:\s*\"query\"/ // Regex body match
+      }
+    ]
+  }
+});
+```
 
 ## Adapters
 
@@ -154,6 +187,115 @@ The hybrid multi-tier storage engine.
 - `new SmartCache(options)`
 - **`options.maxMemorySize`**: Threshold (in bytes) for offloading bodies to disk (default `1048576`, i.e., 1MB).
 - **`options.storagePath`**: Disk storage path for the `cacache` engine (defaults to a system temp folder).
+
+### Utility Functions
+
+Exported from `@isdk/proxy` for advanced usage:
+
+#### `isMatch(pattern, value, usePrefix?)`
+
+Universal pattern matching function. Supports RegExp, Glob, array patterns (with negation), and string prefix/exact matching.
+
+- **`pattern`**: `string | RegExp | (string | RegExp)[]`
+- **`value`**: The string to test against
+- **`usePrefix`**: For plain strings, use prefix match instead of exact match (default: `false`)
+- **Returns**: `boolean`
+
+```typescript
+import { isMatch } from '@isdk/proxy';
+
+isMatch('/api/v[12]/.*', '/api/v1/users');     // RegExp
+isMatch('/api/**/*.json', '/api/v1/data.json'); // Glob
+isMatch(['!/private/**', '/api/**'], '/api/data'); // Negation
+```
+
+#### `isGlob(pattern)`
+
+Check if a pattern is Glob syntax.
+
+- **`pattern`**: `string`
+- **Returns**: `boolean`
+
+#### `getSiteConfig(urlString, proxyConfig)`
+
+Get the site-specific cache configuration for a given URL.
+
+- **`urlString`**: Full URL to match
+- **`proxyConfig`**: `ProxyConfig` object with `sites` and `default` config
+- **Returns**: `SiteCacheConfig`
+
+```typescript
+import { getSiteConfig } from '@isdk/proxy';
+
+const config = getSiteConfig('https://api.example.com/data', {
+  default: { methods: ['GET'] },
+  sites: {
+    'api.example.com': { methods: ['GET', 'POST'], forceCache: true },
+    '/internal/': { staleIfError: true } // prefix match
+  }
+});
+```
+
+#### `isAllowed(key, config, defaultAllowed?)`
+
+Check if a key is allowed to participate in cache key fingerprinting.
+
+- **`key`**: The key name to check
+- **`config`**: `KeyFilterConfig` with `include` (whitelist) or `exclude` (blacklist)
+- **`defaultAllowed`**: Optional. Default value when no config or no match
+- **Returns**: `boolean | undefined`
+
+**Priority Logic**:
+
+1. `exclude` hit → returns `false` (highest priority)
+2. `include` exists and hits → returns `true`
+3. `include` exists but no hit → returns `false`
+4. No config → uses `defaultAllowed` (returns `undefined` if not provided)
+
+```typescript
+import { isAllowed } from '@isdk/proxy';
+
+// No config
+isAllowed('key'); // undefined (falsy)
+
+// Whitelist
+isAllowed('id', { include: ['id', 'name'] }); // true
+isAllowed('email', { include: ['id', 'name'] }); // false
+
+// Blacklist
+isAllowed('password', { exclude: ['password'] }); // false
+isAllowed('name', { exclude: ['password'] }); // undefined (falsy)
+
+// Need defaultAllowed to set default
+isAllowed('name', { exclude: ['password'] }, true); // true
+```
+
+#### `extractData(source, config, defaultAllowed?)`
+
+Extract and normalize data from a source object based on filter config. Used for generating cache fingerprints.
+
+- **`source`**: Original data object (Query, Headers, Cookies, etc.)
+- **`config`**: `KeyFilterConfig` object
+- **`defaultAllowed`**: Optional. Whether to allow extraction when no config or no match (default `false`)
+- **Returns**: `Record<string, string[]>` normalized data with lowercase keys and sorted array values
+
+```typescript
+import { extractData } from '@isdk/proxy';
+
+const headers = { 'Content-Type': 'application/json', 'X-Request-Id': '123' };
+
+// No extraction by default
+extractData(headers); // {}
+
+// Extract all keys
+extractData(headers, undefined, true); // { 'content-type': ['application/json'], 'x-request-id': ['123'] }
+
+// Whitelist
+extractData(headers, { include: ['content-type'] }); // { 'content-type': ['application/json'] }
+
+// Blacklist
+extractData(headers, { include: ['*'], exclude: ['x-request-id'] }, true); // { 'content-type': ['application/json'] }
+```
 
 ### Cache Status Headers
 
