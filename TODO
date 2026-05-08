@@ -1,0 +1,3 @@
+refactors:
+  ☐ 梳理规则中哪些应该默认允许，哪些默认应该拒绝。比如 headers 和 cookies 没有特别列出的默认应该拒绝。而对于 query 参数没有特别说明默认应该为允许。
+  ☐ 哪些 content-type 可以作为body文本(put/post),应该是常量，用户也可以自定义。
