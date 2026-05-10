@@ -44,7 +44,7 @@ export class SmartCache {
   constructor(options: SmartCacheOptions = {}) {
     this.storagePath = options.storagePath || path.join(os.tmpdir(), 'isdk-proxy-cache');
     this.maxMemorySize = options.maxMemorySize ?? 1024 * 1024;
-    
+
     const maxTotalMemorySize = options.maxTotalMemorySize || 100 * 1024 * 1024; // 100MB
     const memoryOptions = {
       capacity: 0, // 仅通过权重(Size)限制，不限制数量
@@ -56,7 +56,7 @@ export class SmartCache {
           s += val.body.length;
         }
         // 粗略估计元数据大小
-        s += 512; 
+        s += 512;
         return s;
       },
       ...options.memoryOptions,
@@ -176,12 +176,12 @@ export class SmartCache {
     // 乐观清除内存缓存，防止磁盘更新后内存仍然返回旧数据
     this.memory.del(key);
     const stream = cacache.put.stream(this.storagePath, key, { metadata });
-    
+
     // 关键修复：流写入完成后再次清理内存，防止写入期间被其他并发读取回填了旧数据
     stream.on('finish', () => {
       this.memory.del(key);
     });
-    
+
     return stream as unknown as NodeJS.WritableStream;
   }
 
@@ -190,9 +190,9 @@ export class SmartCache {
     await cacache.rm.entry(this.storagePath, key);
   }
 
-  async clear(): Promise<void> {
+  async clear(clearPersistent = true): Promise<void> {
     this.memory.clear();
-    await cacache.rm.all(this.storagePath);
+    if (clearPersistent) { await cacache.rm.all(this.storagePath) }
   }
 }
 
