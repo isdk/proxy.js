@@ -185,11 +185,20 @@ export class SmartCache {
     return stream as unknown as NodeJS.WritableStream;
   }
 
-  async delete(key: string): Promise<void> {
+  /**
+   * Deletes the cache entry for the specified key.
+   * @param key - The cache key to delete
+   * @param [clearPersistent=true] - Whether to also delete the entry from persistent (disk) storage. Defaults to `true`.
+   */
+  async delete(key: string, clearPersistent = true): Promise<void> {
     this.memory.del(key);
-    await cacache.rm.entry(this.storagePath, key);
+    if (clearPersistent) { await cacache.rm.entry(this.storagePath, key) }
   }
 
+  /**
+   * Clears the cache. By default, both the in-memory cache and the persistent disk cache are cleared.
+   * @param [clearPersistent=true] - Whether to clear the persistent (disk) cache. Defaults to `true` for backward compatibility.
+   */
   async clear(clearPersistent = true): Promise<void> {
     this.memory.clear();
     if (clearPersistent) { await cacache.rm.all(this.storagePath) }
