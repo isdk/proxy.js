@@ -87,16 +87,30 @@ const myPostFetch = createCachedFetch({
 | `query` | `KeyFilterConfig` | URL 查询参数过滤（`include` 白名单 / `exclude` 黑名单）。 |
 | `headers` | `KeyFilterConfig` | 请求头过滤。 |
 | `cookies` | `KeyFilterConfig` | Cookie 字段过滤。 |
-| `body` | `KeyFilterConfig` | **仅限 JSON** 的请求体字段过滤。 |
+| `body` | `KeyFilterConfig` | 请求体字段过滤。对于 JSON 类型支持字段级过滤；也支持通过 `extract` 正则提取关键数据。 |
 | `staleIfError`| `boolean` | 网络请求失败时，是否强制返回本地过期的旧缓存。 |
 | `forceCache` | `boolean` | 是否无视源站指令强制执行缓存，常用于离线应用。 |
+| `offline` | `boolean` | 离线模式。开启后只读缓存，若无缓存则抛出 `OfflineCacheMissError`。 |
 
 ### `CacheRule` 规则对象
 
 - `method`: 匹配的 HTTP 方法。
 - `path`: 路径匹配（支持**正则表达式**、**Glob 通配符**、**数组格式**或**前缀匹配**）。
 - `query`: 键值对匹配。值可以是 `string`（全等/Glob匹配）、`true`（参数必须存在）、`false`（参数必须不存在）、或 `RegExp`（正则匹配）。
+- `bodyType`: 匹配 Body 类型，支持 `'json'`, `'text'`, `'binary'`。
 - `body`: Body 内容匹配（支持**正则表达式**、**Glob 通配符**或**数组格式**）。
+
+---
+
+### `fetchWithCache` 高级选项
+
+除了 `SiteCacheConfig` 外，`fetchWithCache` 还支持以下控制选项：
+
+| 选项 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `backgroundUpdate` | `boolean` | 是否启用后台异步更新 (SWR)。默认为 `true`。 |
+| `onBackgroundUpdate`| `function` | 当触发后台更新时，接收该更新 Promise 的回调。可用作任务追踪。 |
+| `generateKey` | `function` | 自定义缓存键生成函数。 |
 
 ### 模式匹配说明
 
@@ -304,6 +318,50 @@ extractData(headers, { include: ['content-type'] }); // { 'content-type': ['appl
 
 // 黑名单
 extractData(headers, { include: ['*'], exclude: ['x-request-id'] }, true); // { 'content-type': ['application/json'] }
+```
+
+### `prefetch(options)`
+
+预缓存函数，提前将指定的 URL 列表内容存入缓存。
+
+- **`urls`**: `PrefetchRequest[]`。每个对象包含 `url` 和可选的 `request` 配置。
+- **`config`**: `ProxyConfig` 完整配置。
+- **`cache`**: `SmartCache` 实例。
+- **`concurrency`**: 并发数（默认 `3`）。
+- **`onProgress`**: 进度回调 `(completed, total, url) => void`。
+
+```typescript
+import { prefetch } from '@isdk/proxy';
+
+const result = await prefetch({
+  urls: [
+    { url: 'https://api.example.com/page1' },
+    { url: 'https://api.example.com/api2', request: { method: 'POST', body: '...' } }
+  ],
+  config,
+  cache,
+  onProgress: (c, t, url) => console.log(`Progress: ${c}/${t} - ${url}`)
+});
+console.log(`Succeeded: ${result.succeeded}, Failed: ${result.failed}`);
+```
+
+### 错误处理：`OfflineCacheMissError`
+
+在开启 `offline: true` 模式时，如果请求未命中缓存，将抛出此错误。
+
+- **`name`**: `OfflineCacheMissError`
+- **`code`**: `ERR_OFFLINE_CACHE_MISS` (可通过导入 `OfflineCacheMissErrorCode` 获得)
+
+```typescript
+import { OfflineCacheMissError } from '@isdk/proxy';
+
+try {
+  await myFetch(request);
+} catch (e) {
+  if (e instanceof OfflineCacheMissError) {
+    // 处理离线未命中
+  }
+}
 ```
 
 ### 缓存状态标头 (Cache Status Headers)

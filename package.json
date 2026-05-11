@@ -36,7 +36,7 @@
     "release.alpha": "pnpm run release -- --prerelease alpha"
   },
   "dependencies": {
-    "@isdk/common-error": "^0.2.0",
+    "@isdk/common-error": "^0.2.2",
     "cacache": "^20.0.4",
     "events-ex": "^2.3.1",
     "http-cache-semantics": "^4.2.0",

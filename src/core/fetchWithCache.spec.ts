@@ -10,9 +10,12 @@ describe('fetchWithCache', () => {
     staleIfError: true,
   };
 
+  const testDirs: string[] = [];
+
   // 辅助函数：在系统临时目录下创建一个唯一的测试缓存
   async function createTestCache(name: string, maxMemorySize?: number) {
-    const storagePath = path.join(os.tmpdir(), `isdk-proxy-test-${name}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const storagePath = path.join(os.tmpdir(), `isdk-proxy-test-fetch-${name}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    testDirs.push(storagePath);
     await fs.rm(storagePath, { recursive: true, force: true });
     const cache = new SmartCache({ storagePath, maxMemorySize });
     const activeCacheWrites = new Map<string, Promise<void>>();
@@ -21,11 +24,15 @@ describe('fetchWithCache', () => {
 
   // 测试结束后清理临时目录
   afterAll(async () => {
-    const tmpDir = os.tmpdir();
-    const files = await fs.readdir(tmpDir);
-    for (const file of files) {
-      if (file.startsWith('isdk-proxy-test-')) {
-        await fs.rm(path.join(tmpDir, file), { recursive: true, force: true }).catch(() => { });
+    for (const dir of testDirs) {
+      // 增加重试逻辑，防止文件系统延迟导致的 ENOTEMPTY
+      for (let i = 0; i < 5; i++) {
+        try {
+          await fs.rm(dir, { recursive: true, force: true });
+          break;
+        } catch (e) {
+          await new Promise(r => setTimeout(r, 100));
+        }
       }
     }
   });
@@ -115,7 +122,7 @@ describe('fetchWithCache', () => {
   it('应该防击穿：多个并发请求相同时，只发起一次网络请求并共享结果', async () => {
     const { cache, activeCacheWrites } = await createTestCache('coalescing');
     const request = new Request('https://api.example.com/coalesce');
-    
+
     // 模拟一个需要一定时间才能响应的慢速网络请求
     const mockFetcher = vi.fn().mockImplementation(async () => {
       await new Promise(r => setTimeout(r, 100));
@@ -135,7 +142,7 @@ describe('fetchWithCache', () => {
 
     // 等待所有流被消费
     const texts = await Promise.all(responses.map(res => res.text()));
-    
+
     // 三个请求拿到的内容应该完全一致
     expect(texts[0]).toBe('coalesced_data');
     expect(texts[1]).toBe('coalesced_data');
@@ -155,7 +162,7 @@ describe('fetchWithCache', () => {
   it('应该不缓存带有 Cache-Control: no-store 的响应', async () => {
     const { cache, activeCacheWrites } = await createTestCache('nostore');
     const request = new Request('https://api.example.com/no-store');
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('secret data', {
       headers: { 'Cache-Control': 'no-store' }
     }));
@@ -163,20 +170,20 @@ describe('fetchWithCache', () => {
     const res1 = await fetchWithCache(request, mockFetcher, { cache, config, activeCacheWrites });
     expect(await res1.text()).toBe('secret data');
     expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
-    
+
     await Promise.all(activeCacheWrites.values());
 
     const res2 = await fetchWithCache(request, mockFetcher, { cache, config, activeCacheWrites });
     expect(await res2.text()).toBe('secret data');
     expect(res2.headers.get('x-proxy-cache')).toBe('MISS');
-    
+
     expect(mockFetcher).toHaveBeenCalledTimes(2);
   });
 
   it('开启 forceCache 时，应该无视 no-store 强制缓存', async () => {
     const { cache, activeCacheWrites } = await createTestCache('forcecache');
     const request = new Request('https://api.example.com/no-store-force');
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('secret data', {
       headers: { 'Cache-Control': 'no-store' }
     }));
@@ -187,21 +194,21 @@ describe('fetchWithCache', () => {
     const res1 = await fetchWithCache(request, mockFetcher, { cache, config: testConfig, activeCacheWrites });
     expect(await res1.text()).toBe('secret data');
     expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
-    
+
     await Promise.all(activeCacheWrites.values());
 
     const res2 = await fetchWithCache(request, mockFetcher, { cache, config: testConfig, activeCacheWrites });
     expect(await res2.text()).toBe('secret data');
     // 由于是 no-store，它的 policy 永远是过期的，所以一定会触发 SWR 并返回 STALE
     expect(res2.headers.get('x-proxy-cache')).toBe('STALE');
-    
+
     expect(mockFetcher).toHaveBeenCalledTimes(2);
   });
 
   it('应该正常处理无 Body 的响应 (例如 204 No Content)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('nobody');
     const request = new Request('https://api.example.com/204');
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => new Response(null, {
       status: 204,
       headers: { 'Cache-Control': 'public, max-age=3600' }
@@ -215,7 +222,7 @@ describe('fetchWithCache', () => {
     const res2 = await fetchWithCache(request, mockFetcher, { cache, config, activeCacheWrites });
     expect(res2.status).toBe(204);
     expect(res2.headers.get('x-proxy-cache')).toBe('HIT');
-    
+
     expect(mockFetcher).toHaveBeenCalledTimes(1);
   });
 
@@ -247,7 +254,7 @@ describe('fetchWithCache', () => {
   it('在并发请求合并时，如果发起者 Fetch 失败，所有并发等待者应收到相同错误且不重试', async () => {
     const { cache, activeCacheWrites } = await createTestCache('coalesce-fail');
     const request = new Request('https://api.example.com/fail');
-    
+
     const mockFetcher = vi.fn().mockImplementation(async () => {
       await new Promise(r => setTimeout(r, 50));
       throw new Error('Network Error');
@@ -258,7 +265,7 @@ describe('fetchWithCache', () => {
 
     await expect(p1).rejects.toThrow('Network Error');
     await expect(p2).rejects.toThrow('Network Error');
-    
+
     // 关键：fetcher 应该只被调用了 1 次
     expect(mockFetcher).toHaveBeenCalledTimes(1);
   });

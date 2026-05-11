@@ -106,6 +106,8 @@ export interface SiteCacheConfig {
   staleIfError?: boolean;
   /** 强制缓存：是否忽略 `Cache-Control: no-store` 等指令强制入库。 */
   forceCache?: boolean;
+  /** 严格离线模式：不发起任何网络请求，只读缓存。缓存未命中时抛出 OfflineCacheMissError */
+  offline?: boolean;
 }
 
 /**

@@ -89,16 +89,30 @@ const myPostFetch = createCachedFetch({
 | `query` | `KeyFilterConfig` | Filters for URL search parameters (`include`/`exclude`). |
 | `headers` | `KeyFilterConfig` | Filters for request headers. |
 | `cookies` | `KeyFilterConfig` | Filters for cookies. |
-| `body` | `KeyFilterConfig` | Filters for JSON request body fields. |
+| `body` | `KeyFilterConfig` | Filters for request body fields. For JSON, supports field-level filtering; also supports extracting key data via `extract` regex. |
 | `staleIfError`| `boolean` | Serve stale cache on network failure. |
 | `forceCache` | `boolean` | Ignore `no-store` and force caching (useful for offline support). |
+| `offline` | `boolean` | Offline mode. Only reads from cache; throws `OfflineCacheMissError` if no cache exists. |
 
 ### `CacheRule` Object
 
 - `method`: HTTP method to match.
 - `path`: URL pathname matching (supports **RegExp**, **Glob**, **Array**, or **prefix match**).
 - `query`: Key-value pairs. Values can be `string` (exact/Glob match), `true` (must exist), `false` (must not exist), or `RegExp`.
+- `bodyType`: Match body type. Supports `'json'`, `'text'`, `'binary'`.
 - `body`: Body content matching (supports **RegExp**, **Glob**, or **Array**).
+
+---
+
+### `fetchWithCache` Advanced Options
+
+In addition to `SiteCacheConfig`, `fetchWithCache` supports the following control options:
+
+| Option | Type | Description |
+| :--- | :--- | :--- |
+| `backgroundUpdate` | `boolean` | Whether to enable background async update (SWR). Default is `true`. |
+| `onBackgroundUpdate`| `function` | Callback that receives the update Promise when a background update is triggered. Useful for task tracking. |
+| `generateKey` | `function` | Custom cache key generation function. |
 
 ### Pattern Matching
 
@@ -297,6 +311,50 @@ extractData(headers, { include: ['content-type'] }); // { 'content-type': ['appl
 
 // Blacklist
 extractData(headers, { include: ['*'], exclude: ['x-request-id'] }, true); // { 'content-type': ['application/json'] }
+```
+
+### `prefetch(options)`
+
+Pre-cache function that fetches and stores a list of URLs into cache ahead of time.
+
+- **`urls`**: `PrefetchRequest[]`. Each object contains `url` and optional `request` config.
+- **`config`**: `ProxyConfig` full configuration.
+- **`cache`**: `SmartCache` instance.
+- **`concurrency`**: Concurrency limit (default `3`).
+- **`onProgress`**: Progress callback `(completed, total, url) => void`.
+
+```typescript
+import { prefetch } from '@isdk/proxy';
+
+const result = await prefetch({
+  urls: [
+    { url: 'https://api.example.com/page1' },
+    { url: 'https://api.example.com/api2', request: { method: 'POST', body: '...' } }
+  ],
+  config,
+  cache,
+  onProgress: (c, t, url) => console.log(`Progress: ${c}/${t} - ${url}`)
+});
+console.log(`Succeeded: ${result.succeeded}, Failed: ${result.failed}`);
+```
+
+### Error Handling: `OfflineCacheMissError`
+
+When `offline: true` mode is enabled and a request does not hit the cache, this error is thrown.
+
+- **`name`**: `OfflineCacheMissError`
+- **`code`**: `ERR_OFFLINE_CACHE_MISS` (can be imported as `OfflineCacheMissErrorCode`)
+
+```typescript
+import { OfflineCacheMissError } from '@isdk/proxy';
+
+try {
+  await myFetch(request);
+} catch (e) {
+  if (e instanceof OfflineCacheMissError) {
+    // Handle offline cache miss
+  }
+}
 ```
 
 ### Cache Status Headers

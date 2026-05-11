@@ -19,9 +19,26 @@ export function getSiteConfig(urlString: string, proxyConfig: ProxyConfig): Site
   
   if (!sites) return defaultConfig;
 
+  let hostname = '';
+  try {
+    hostname = new URL(urlString).hostname;
+  } catch {
+    // 忽略无效 URL
+  }
+
   for (const [pattern, config] of Object.entries(sites)) {
-    // sites 的 key 如果是普通字符串，默认使用前缀匹配 (usePrefix = true)
+    // 1. 优先尝试精确匹配主机名
+    if (hostname && pattern === hostname) {
+      return config;
+    }
+
+    // 2. 尝试匹配完整 URL (支持 Glob, RegExp, 前缀)
     if (isMatch(pattern, urlString, true)) {
+      return config;
+    }
+
+    // 3. 尝试后缀匹配主机名 (例如 "example.com" 匹配 "api.example.com")
+    if (hostname && hostname.endsWith(pattern) && (pattern.startsWith('.') || hostname.charAt(hostname.length - pattern.length - 1) === '.')) {
       return config;
     }
   }
