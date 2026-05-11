@@ -1,7 +1,13 @@
-refactors:
-  ☐ 梳理 SiteCacheConfig
-  ☐ 梳理规则中哪些应该默认允许，哪些默认应该拒绝。比如 headers 和 cookies 没有特别列出的默认应该拒绝。而对于 query 参数没有特别说明默认应该为允许。
-  ☐ 重构 fetchWithCache
-    ☐ 拆分 fetchWithCache 中的内部函数（将其变为目录）
-    ☐ 重构 isCacheable 函数
-  ☐ 哪些 content-type 可以作为body文本(put/post),应该是常量，用户也可以自定义。@low
+重构：
+  ☐ 梳理 SiteCacheConfig 重构方案（过滤提取关键配置 和 匹配规则感觉是相似的东西）
+    - `SiteCacheConfig.query` 与 `CacheRule.query` （过滤配置 vs 匹配规则）
+    - `SiteCacheConfig.body` 与 `CacheRule.body` （缓存键提取 vs 规则匹配）
+  ☐ 梳理规则默认行为：headers/cookies 未配置时默认拒绝，query 参数默认允许
+  ☐ 将 body 文本 content-type 判断逻辑（isCacheable.ts:32-33）提取为可配置常量，支持用户自定义 @low
+
+测试：
+  ☐ SmartCache 流式错误回滚测试：验证 pipeline 失败时缓存元数据是否正确清理
+  ☐ fetchWithCache 304 处理：验证 Response.body 确实为 null
+  ☐ prefetch 资源释放：验证 AbortSignal 取消后 activeCacheWrites 正确清理，防止内存泄漏
+  ⚠️ 路径前缀匹配边缘情况：/api 匹配 /api/v1 (✓) 但可能误匹配 /api-old (需评估是否需要精确边界)
+
