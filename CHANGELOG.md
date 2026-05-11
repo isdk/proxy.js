@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.3](https://github.com/isdk/proxy.js/compare/v0.1.2...v0.1.3) (2026-05-11)
+
+
+### Features
+
+* add offline mode with prefetch and enhance cache matching ([5fe5711](https://github.com/isdk/proxy.js/commit/5fe571198870b364bf89e5ae86139facf247a25f))
+* **SmartCache:** add clearPersistent param to clear method ([4cd6a2b](https://github.com/isdk/proxy.js/commit/4cd6a2b4636a73c208a7b651e329cb4abc6ffff6))
+* **SmartCache:** add clearPersistent parameter to delete method ([9adb677](https://github.com/isdk/proxy.js/commit/9adb6771a15ced80815da7db0317827f411b140f))
+
 ## [0.1.2](https://github.com/isdk/proxy.js/compare/v0.1.1...v0.1.2) (2026-05-08)
 
 
