@@ -8,7 +8,7 @@
 
 > **extractData**(`source`, `config?`, `defaultAllowed?`): `Record`\<`string`, `string`[]\>
 
-Defined in: [utils/extractData.ts:40](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/utils/extractData.ts#L40)
+Defined in: [packages/proxy/src/utils/extractData.ts:40](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/utils/extractData.ts#L40)
 
 从源对象中根据过滤配置提取数据并标准化。
 

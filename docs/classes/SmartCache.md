@@ -6,7 +6,7 @@
 
 # Class: SmartCache
 
-Defined in: [core/SmartCache.ts:39](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L39)
+Defined in: [packages/proxy/src/core/SmartCache.ts:39](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L39)
 
 智能混合缓存类 (Hybrid Multi-tier Cache)
 
@@ -26,7 +26,7 @@ Defined in: [core/SmartCache.ts:39](https://github.com/isdk/proxy.js/blob/76fee3
 
 > **new SmartCache**(`options`): `SmartCache`
 
-Defined in: [core/SmartCache.ts:44](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L44)
+Defined in: [packages/proxy/src/core/SmartCache.ts:44](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L44)
 
 #### Parameters
 
@@ -42,9 +42,19 @@ Defined in: [core/SmartCache.ts:44](https://github.com/isdk/proxy.js/blob/76fee3
 
 ### clear()
 
-> **clear**(): `Promise`\<`void`\>
+> **clear**(`clearPersistent?`): `Promise`\<`void`\>
 
-Defined in: [core/SmartCache.ts:193](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L193)
+Defined in: [packages/proxy/src/core/SmartCache.ts:202](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L202)
+
+Clears the cache. By default, both the in-memory cache and the persistent disk cache are cleared.
+
+#### Parameters
+
+##### clearPersistent?
+
+`boolean` = `true`
+
+Whether to clear the persistent (disk) cache. Defaults to `true` for backward compatibility.
 
 #### Returns
 
@@ -54,15 +64,25 @@ Defined in: [core/SmartCache.ts:193](https://github.com/isdk/proxy.js/blob/76fee
 
 ### delete()
 
-> **delete**(`key`): `Promise`\<`void`\>
+> **delete**(`key`, `clearPersistent?`): `Promise`\<`void`\>
 
-Defined in: [core/SmartCache.ts:188](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L188)
+Defined in: [packages/proxy/src/core/SmartCache.ts:193](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L193)
+
+Deletes the cache entry for the specified key.
 
 #### Parameters
 
 ##### key
 
 `string`
+
+The cache key to delete
+
+##### clearPersistent?
+
+`boolean` = `true`
+
+Whether to also delete the entry from persistent (disk) storage. Defaults to `true`.
 
 #### Returns
 
@@ -74,7 +94,7 @@ Defined in: [core/SmartCache.ts:188](https://github.com/isdk/proxy.js/blob/76fee
 
 > **get**(`key`): `Promise`\<[`CacheEntry`](../interfaces/CacheEntry.md) \| `null`\>
 
-Defined in: [core/SmartCache.ts:79](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L79)
+Defined in: [packages/proxy/src/core/SmartCache.ts:79](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L79)
 
 获取缓存条目
 
@@ -104,7 +124,7 @@ Defined in: [core/SmartCache.ts:79](https://github.com/isdk/proxy.js/blob/76fee3
 
 > **getStream**(`key`): `ReadableStream`
 
-Defined in: [core/SmartCache.ts:159](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L159)
+Defined in: [packages/proxy/src/core/SmartCache.ts:159](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L159)
 
 获取磁盘读取流
 
@@ -130,7 +150,7 @@ Node.js 可读流
 
 > **set**(`key`, `body`, `metadata`): `Promise`\<`void`\>
 
-Defined in: [core/SmartCache.ts:129](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L129)
+Defined in: [packages/proxy/src/core/SmartCache.ts:129](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L129)
 
 写入缓存条目 (原子写入)
 
@@ -166,7 +186,7 @@ Defined in: [core/SmartCache.ts:129](https://github.com/isdk/proxy.js/blob/76fee
 
 > **setStream**(`key`, `metadata`): `WritableStream`
 
-Defined in: [core/SmartCache.ts:175](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L175)
+Defined in: [packages/proxy/src/core/SmartCache.ts:175](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L175)
 
 获取磁盘写入流 (流式缓存)
 

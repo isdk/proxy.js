@@ -6,6 +6,7 @@
 
 ## Classes
 
+- [OfflineCacheMissError](classes/OfflineCacheMissError.md)
 - [SmartCache](classes/SmartCache.md)
 
 ## Interfaces
@@ -17,9 +18,16 @@
 - [FetchWithCacheContext](interfaces/FetchWithCacheContext.md)
 - [FetchWithCacheOptions](interfaces/FetchWithCacheOptions.md)
 - [KeyFilterConfig](interfaces/KeyFilterConfig.md)
+- [PrefetchOptions](interfaces/PrefetchOptions.md)
+- [PrefetchRequest](interfaces/PrefetchRequest.md)
+- [PrefetchResult](interfaces/PrefetchResult.md)
 - [ProxyConfig](interfaces/ProxyConfig.md)
 - [SiteCacheConfig](interfaces/SiteCacheConfig.md)
 - [SmartCacheOptions](interfaces/SmartCacheOptions.md)
+
+## Variables
+
+- [OfflineCacheMissErrorCode](variables/OfflineCacheMissErrorCode.md)
 
 ## Functions
 
@@ -30,5 +38,7 @@
 - [generateCacheKey](functions/generateCacheKey.md)
 - [getSiteConfig](functions/getSiteConfig.md)
 - [isAllowed](functions/isAllowed.md)
+- [isCacheable](functions/isCacheable.md)
 - [isGlob](functions/isGlob.md)
 - [isMatch](functions/isMatch.md)
+- [prefetch](functions/prefetch.md)

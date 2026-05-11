@@ -6,7 +6,7 @@
 
 # Interface: SmartCacheOptions
 
-Defined in: [core/SmartCache.ts:10](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L10)
+Defined in: [packages/proxy/src/core/SmartCache.ts:10](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L10)
 
 SmartCache 选项
 
@@ -16,7 +16,7 @@ SmartCache 选项
 
 > `optional` **maxMemorySize**: `number`
 
-Defined in: [core/SmartCache.ts:14](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L14)
+Defined in: [packages/proxy/src/core/SmartCache.ts:14](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L14)
 
 内存缓存阈值（字节）。响应体大小超过此值时，Body 将只存入磁盘，而 Meta 仍保留在内存。默认 1MB。
 
@@ -26,7 +26,7 @@ Defined in: [core/SmartCache.ts:14](https://github.com/isdk/proxy.js/blob/76fee3
 
 > `optional` **maxTotalMemorySize**: `number`
 
-Defined in: [core/SmartCache.ts:16](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L16)
+Defined in: [packages/proxy/src/core/SmartCache.ts:16](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L16)
 
 内存缓存总大小阈值（字节）。默认 100MB。超过此值将清空内存缓存。
 
@@ -36,7 +36,7 @@ Defined in: [core/SmartCache.ts:16](https://github.com/isdk/proxy.js/blob/76fee3
 
 > `optional` **memoryOptions**: `object`
 
-Defined in: [core/SmartCache.ts:18](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L18)
+Defined in: [packages/proxy/src/core/SmartCache.ts:18](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L18)
 
 透传给 L1 (Memory) 的高级配置 (secondary-cache LRUCache options)
 
@@ -62,6 +62,6 @@ Defined in: [core/SmartCache.ts:18](https://github.com/isdk/proxy.js/blob/76fee3
 
 > `optional` **storagePath**: `string`
 
-Defined in: [core/SmartCache.ts:12](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/SmartCache.ts#L12)
+Defined in: [packages/proxy/src/core/SmartCache.ts:12](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/SmartCache.ts#L12)
 
 磁盘缓存的物理路径。如果不提供，将默认使用系统临时目录。

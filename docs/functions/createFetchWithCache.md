@@ -8,7 +8,7 @@
 
 > **createFetchWithCache**(`activeCacheWrites?`): (`request`, `fetcher`, `options`) => `Promise`\<`Response`\>
 
-Defined in: [core/createFetchWithCache.ts:16](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/core/createFetchWithCache.ts#L16)
+Defined in: [packages/proxy/src/core/createFetchWithCache.ts:16](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/createFetchWithCache.ts#L16)
 
 单一职责高阶函数：专门用于封装和隔离 activeCacheWrites 并发追踪器。
 

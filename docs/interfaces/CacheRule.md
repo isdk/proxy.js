@@ -6,7 +6,7 @@
 
 # Interface: CacheRule
 
-Defined in: [types.ts:35](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L35)
+Defined in: [packages/proxy/src/types.ts:35](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/types.ts#L35)
 
 精细化缓存匹配规则
 
@@ -20,7 +20,7 @@ Defined in: [types.ts:35](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5b
 
 > `optional` **body**: `string` \| `RegExp` \| (`string` \| `RegExp`)[]
 
-Defined in: [types.ts:75](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L75)
+Defined in: [packages/proxy/src/types.ts:75](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/types.ts#L75)
 
 Body 内容匹配。
 仅当 Body 为文本或 JSON 时有效。
@@ -34,7 +34,7 @@ Body 内容匹配。
 
 > `optional` **bodyType**: `"json"` \| `"text"` \| `"binary"`
 
-Defined in: [types.ts:67](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L67)
+Defined in: [packages/proxy/src/types.ts:67](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/types.ts#L67)
 
 强制指定 Body 类型。
 如果不指定，则根据 `Content-Type` 自动判断。
@@ -45,7 +45,7 @@ Defined in: [types.ts:67](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5b
 
 > `optional` **method**: `string`
 
-Defined in: [types.ts:40](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L40)
+Defined in: [packages/proxy/src/types.ts:40](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/types.ts#L40)
 
 匹配的方法 (如 "POST")。
 如果指定，则必须方法完全一致；如果不指定，则匹配所有 `methods` 中允许的方法。
@@ -56,7 +56,7 @@ Defined in: [types.ts:40](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5b
 
 > `optional` **path**: `string` \| `RegExp` \| (`string` \| `RegExp`)[]
 
-Defined in: [types.ts:52](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L52)
+Defined in: [packages/proxy/src/types.ts:52](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/types.ts#L52)
 
 路径匹配。
 - 字符串: 默认进行 Glob 模式匹配（支持 `!` 否定），若非 Glob 且非正则字符串则退化为前缀匹配。
@@ -69,7 +69,7 @@ Defined in: [types.ts:52](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5b
 
 > `optional` **query**: `Record`\<`string`, `string` \| `boolean` \| `RegExp`\>
 
-Defined in: [types.ts:62](https://github.com/isdk/proxy.js/blob/76fee3a101f98e5bf29599fe7ea02ab06479cf70/src/types.ts#L62)
+Defined in: [packages/proxy/src/types.ts:62](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/types.ts#L62)
 
 Query 参数匹配规则。
 - 键名: 支持字符串、Glob 或正则。
