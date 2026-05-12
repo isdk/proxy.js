@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { SmartCache, prefetch, generateCacheKey, fetchWithCache } from './index';
-import type { ProxyConfig, SiteCacheConfig } from '../types';
+import type { ProxyConfig, ProxySiteConfig } from '../types';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -43,9 +43,7 @@ describe('prefetch', () => {
   });
 
   const config: ProxyConfig = {
-    default: {
-      methods: ['GET', 'POST', 'PUT'],
-    },
+    methods: ['GET', 'POST', 'PUT'],
     sites: {}
   };
 
@@ -259,9 +257,9 @@ describe('prefetch', () => {
   });
 
   it('预取时应覆盖站点配置中的 offline: true', async () => {
-    const siteConfig: SiteCacheConfig = { offline: true };
+    const siteConfig: ProxySiteConfig = { offline: true };
     const configWithOffline: ProxyConfig = {
-      default: { methods: ['GET'] },
+      methods: ['GET'],
       sites: {
         'api.example.com': siteConfig
       }
@@ -346,14 +344,14 @@ describe('prefetch', () => {
   });
 
   it('当 URL 不符合缓存规则被跳过时，onProgress 依然应该正确触发', async () => {
-    const siteConfig: SiteCacheConfig = {
+    const siteConfig: ProxySiteConfig = {
       methods: ['GET'],
-      cacheRules: [
+      rules: [
         { path: '/cacheable/*' }
       ]
     };
     const configWithRules: ProxyConfig = {
-      default: { methods: ['GET'] },
+      methods: ['GET'],
       sites: {
         'api.example.com': siteConfig
       }
@@ -437,14 +435,14 @@ describe('prefetch', () => {
   });
 
   it('应该遵守站点缓存规则 (cacheRules)', async () => {
-    const siteConfig: SiteCacheConfig = {
+    const siteConfig: ProxySiteConfig = {
       methods: ['GET'],
-      cacheRules: [
+      rules: [
         { path: '/cacheable/*' }
       ]
     };
     const configWithRules: ProxyConfig = {
-      default: { methods: ['GET'] },
+      methods: ['GET'],
       sites: {
         'api.example.com': siteConfig
       }
@@ -501,7 +499,7 @@ describe('prefetch', () => {
     expect(prefetchResult.succeeded).toBe(1);
 
     // 2. 切换到离线模式
-    const offlineConfig: SiteCacheConfig = { 
+    const offlineConfig: ProxySiteConfig = { 
       methods: ['GET'],
       offline: true 
     };

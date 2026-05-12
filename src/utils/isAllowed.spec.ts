@@ -1,175 +1,91 @@
 import { describe, it, expect } from 'vitest';
 import { isAllowed } from './isAllowed';
-import { KeyFilterConfig } from '../types';
 
 describe('isAllowed', () => {
   describe('无配置时', () => {
-    it('无配置且无 defaultAllowed 时，返回 undefined (falsy)', () => {
-      expect(isAllowed('any-key')).toBeFalsy();
-      expect(isAllowed('another-key')).toBeFalsy();
-    });
-
-    it('空配置且无 defaultAllowed 时，返回 undefined (falsy)', () => {
-      expect(isAllowed('key', {})).toBeFalsy();
+    it('无配置且无 defaultAllowed 时，返回 false', () => {
+      expect(isAllowed('any-key')).toBe(false);
     });
 
     it('defaultAllowed=true 应该允许所有键', () => {
       expect(isAllowed('any-key', undefined, true)).toBe(true);
-      expect(isAllowed('another-key', {}, true)).toBe(true);
     });
 
     it('defaultAllowed=false 应该拒绝所有键', () => {
       expect(isAllowed('any-key', undefined, false)).toBe(false);
-      expect(isAllowed('key', {}, false)).toBe(false);
-    });
-
-    it('include 白名单应该覆盖 defaultAllowed=false', () => {
-      const config: KeyFilterConfig = {
-        include: ['allowed-key'],
-        exclude: []
-      };
-      expect(isAllowed('allowed-key', config, false)).toBe(true);
-      expect(isAllowed('other-key', config, false)).toBe(false);
-    });
-
-    it('exclude 黑名单应该覆盖 defaultAllowed=true', () => {
-      const config: KeyFilterConfig = {
-        exclude: ['blocked-key']
-      };
-      expect(isAllowed('blocked-key', config, true)).toBe(false);
-      // 没有 include 且不在 exclude 中，使用 defaultAllowed=true
-      expect(isAllowed('other-key', config, true)).toBe(true);
     });
   });
 
-  describe('include 白名单模式', () => {
-    it('应该只允许白名单中的键', () => {
-      const config: KeyFilterConfig = {
-        include: ['id', 'name']
-      };
-      expect(isAllowed('id', config)).toBe(true);
-      expect(isAllowed('name', config)).toBe(true);
-      expect(isAllowed('email', config)).toBe(false);
+  describe('数组模式 (MatchPatterns)', () => {
+    it('白名单模式：应该只允许匹配的键', () => {
+      const patterns = ['id', 'name'];
+      expect(isAllowed('id', patterns)).toBe(true);
+      expect(isAllowed('name', patterns)).toBe(true);
+      expect(isAllowed('email', patterns)).toBe(false);
     });
 
     it('应该支持正则表达式', () => {
-      const config: KeyFilterConfig = {
-        include: [/^utm_/, 'timestamp']
-      };
-      expect(isAllowed('utm_source', config)).toBe(true);
-      expect(isAllowed('utm_campaign', config)).toBe(true);
-      expect(isAllowed('timestamp', config)).toBe(true);
-      expect(isAllowed('other', config)).toBe(false);
+      const patterns = [/^utm_/, 'timestamp'];
+      expect(isAllowed('utm_source', patterns)).toBe(true);
+      expect(isAllowed('utm_campaign', patterns)).toBe(true);
+      expect(isAllowed('timestamp', patterns)).toBe(true);
+      expect(isAllowed('other', patterns)).toBe(false);
     });
 
     it('应该支持 Glob 模式', () => {
-      const config: KeyFilterConfig = {
-        include: ['x-*', 'authorization']
-      };
-      expect(isAllowed('x-custom-header', config)).toBe(true);
-      expect(isAllowed('authorization', config)).toBe(true);
-      expect(isAllowed('content-type', config)).toBe(false);
+      const patterns = ['x-*', 'authorization'];
+      expect(isAllowed('x-custom-header', patterns)).toBe(true);
+      expect(isAllowed('authorization', patterns)).toBe(true);
+      expect(isAllowed('content-type', patterns)).toBe(false);
     });
 
-    it('正则和字符串混用', () => {
-      const config: KeyFilterConfig = {
-        include: [/^x-/, 'authorization', 'content-*']
-      };
-      expect(isAllowed('x-request-id', config)).toBe(true);
-      expect(isAllowed('authorization', config)).toBe(true);
-      expect(isAllowed('content-type', config)).toBe(true);
-      expect(isAllowed('other', config)).toBe(false);
-    });
-  });
-
-  describe('exclude 黑名单模式', () => {
-    it('应该排除黑名单中的键', () => {
-      const config: KeyFilterConfig = {
-        exclude: ['timestamp', 'nonce']
-      };
-      // 没有 include 且不在 exclude 中，返回 undefined (falsy)
-      expect(isAllowed('id', config)).toBeFalsy();
-      expect(isAllowed('name', config)).toBeFalsy();
-      expect(isAllowed('timestamp', config)).toBe(false);
-      expect(isAllowed('nonce', config)).toBe(false);
+    it('否定模式 (黑名单)：使用 ! 排除', () => {
+      // '*' 表示匹配所有，'!timestamp' 表示排除 timestamp
+      const patterns = ['*', '!timestamp', '!nonce'];
+      expect(isAllowed('id', patterns)).toBe(true);
+      expect(isAllowed('name', patterns)).toBe(true);
+      expect(isAllowed('timestamp', patterns)).toBe(false);
+      expect(isAllowed('nonce', patterns)).toBe(false);
     });
 
-    it('应该支持正则表达式', () => {
-      const config: KeyFilterConfig = {
-        exclude: [/^_/, /^x-.*-id$/]
-      };
-      expect(isAllowed('_private', config)).toBe(false);
-      expect(isAllowed('x-session-id', config)).toBe(false);
-      // 没有 include 且不在 exclude 中，返回 undefined (falsy)
-      expect(isAllowed('data', config)).toBeFalsy();
+    it('否定优先级高于肯定：命中即排除', () => {
+      const patterns = ['id', 'name', 'password', '!password'];
+      expect(isAllowed('id', patterns)).toBe(true);
+      expect(isAllowed('password', patterns)).toBe(false);
     });
 
-    it('应该支持 Glob 模式', () => {
-      const config: KeyFilterConfig = {
-        exclude: ['x-dynamic-*', 'session_*']
-      };
-      expect(isAllowed('x-dynamic-123', config)).toBe(false);
-      expect(isAllowed('session_token', config)).toBe(false);
-      // 没有 include 且不在 exclude 中，返回 undefined (falsy)
-      expect(isAllowed('user_id', config)).toBeFalsy();
+    it('只有否定模式时，默认不匹配其余项 (符合 isMatch 逻辑)', () => {
+      const patterns = ['!blocked'];
+      // isMatch 中，如果没有正向匹配，即使没有命中负向匹配，也会返回 false
+      // 如果想要 "除了 blocked 以外全部允许"，必须加上 '*'
+      expect(isAllowed('blocked', patterns)).toBe(false);
+      expect(isAllowed('other', patterns)).toBe(false);
+      
+      const patternsWithAll = ['*', '!blocked'];
+      expect(isAllowed('other', patternsWithAll)).toBe(true);
     });
   });
 
-  describe('include 和 exclude 同时存在', () => {
-    it('exclude 优先级高于 include：命中即排除', () => {
-      const config: KeyFilterConfig = {
-        include: ['*'], // 全部包含
-        exclude: ['password'] // 但排除密码
-      };
-      expect(isAllowed('id', config)).toBe(true);
-      expect(isAllowed('password', config)).toBe(false);
+  describe('单值模式', () => {
+    it('支持字符串', () => {
+      expect(isAllowed('id', 'id')).toBe(true);
+      expect(isAllowed('name', 'id')).toBe(false);
     });
 
-    it('include 部分键，exclude 排除其中的某些键', () => {
-      const config: KeyFilterConfig = {
-        include: ['id', 'name', 'password'],
-        exclude: ['password']
-      };
-      expect(isAllowed('id', config)).toBe(true);
-      expect(isAllowed('name', config)).toBe(true);
-      // password 在 include 中，但被 exclude 排除
-      expect(isAllowed('password', config)).toBe(false);
-    });
-
-    it('include 为空时，exclude 排除命中的键', () => {
-      const config: KeyFilterConfig = {
-        include: [],
-        exclude: ['id']
-      };
-      expect(isAllowed('id', config)).toBe(false);
-      // other 不在 exclude 中，但也不在 include 中，返回 undefined (falsy)
-      expect(isAllowed('other', config)).toBeFalsy();
-    });
-
-    it('include 为空数组时，result=false，不会使用 defaultAllowed', () => {
-      const config: KeyFilterConfig = {
-        include: [],
-        exclude: ['blocked']
-      };
-      // include 存在（即使为空），result 被设为 false，defaultAllowed 不生效
-      expect(isAllowed('blocked', config, true)).toBe(false);
-      expect(isAllowed('other', config, true)).toBe(false);
-    });
-
-    it('exclude 正则与 include 正则同时匹配时，exclude 胜出', () => {
-      const config: KeyFilterConfig = {
-        include: [/^x-/],
-        exclude: [/^x-dynamic/]
-      };
-      expect(isAllowed('x-static-header', config)).toBe(true);
-      expect(isAllowed('x-dynamic-id', config)).toBe(false);
+    it('支持正则表达式', () => {
+      expect(isAllowed('utm_source', /^utm_/)).toBe(true);
+      expect(isAllowed('other', /^utm_/)).toBe(false);
     });
   });
 
   describe('边界情况', () => {
-    it('应该处理空数组', () => {
-      expect(isAllowed('key', { include: [] })).toBe(false);
-      expect(isAllowed('key', { exclude: [] })).toBeFalsy();
+    it('空数组应该拒绝所有', () => {
+      expect(isAllowed('key', [])).toBe(false);
+    });
+
+    it('无效模式类型应返回 false', () => {
+      // @ts-ignore
+      expect(isAllowed('key', {})).toBe(false);
     });
   });
 });

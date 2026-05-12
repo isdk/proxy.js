@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { generateCacheKey } from './generateCacheKey';
-import { SiteCacheConfig } from '../types';
+import { ProxySiteConfig } from '../types';
 
 describe('generateCacheKey', () => {
-  const defaultConfig: SiteCacheConfig = {};
+  const defaultConfig: ProxySiteConfig = {};
 
   it('相同请求应该生成相同的 Key', async () => {
     const req1 = new Request('https://example.com/api?a=1', {
@@ -17,8 +17,8 @@ describe('generateCacheKey', () => {
   });
 
   it('Query 参数过滤应该生效', async () => {
-    const config: SiteCacheConfig = {
-      query: { include: ['id'] } // 只包含 id，忽略其他
+    const config: ProxySiteConfig = {
+      query: ['id'] // 只包含 id，忽略其他
     };
     
     const req1 = new Request('https://example.com/api?id=1&token=ignore_me');
@@ -28,8 +28,8 @@ describe('generateCacheKey', () => {
   });
 
   it('Headers 过滤应该生效', async () => {
-    const config: SiteCacheConfig = {
-      headers: { exclude: ['user-agent'] } // 排除 UA
+    const config: ProxySiteConfig = {
+      headers: ['*', '!user-agent'] // 排除 UA
     };
 
     const req1 = new Request('https://example.com/', { headers: { 'User-Agent': 'Chrome' } });
@@ -39,8 +39,8 @@ describe('generateCacheKey', () => {
   });
 
   it('Cookies 过滤应该生效', async () => {
-    const config: SiteCacheConfig = {
-      cookies: { include: ['session'] }
+    const config: ProxySiteConfig = {
+      cookies: ['session']
     };
 
     const req1 = new Request('https://example.com/', { headers: { 'Cookie': 'session=abc; track=123' } });
@@ -57,7 +57,7 @@ describe('generateCacheKey', () => {
   });
 
   it('相同 Body 的 POST 应该生成相同的 Key', async () => {
-    const config: SiteCacheConfig = { methods: ['POST'] };
+    const config: ProxySiteConfig = { methods: ['POST'] };
     const body = JSON.stringify({ a: 1 });
     const req1 = new Request('https://example.com/', { 
       method: 'POST', 
@@ -74,7 +74,7 @@ describe('generateCacheKey', () => {
   });
 
   it('不同 Body 的 POST 应该生成不同的 Key', async () => {
-    const config: SiteCacheConfig = { methods: ['POST'] };
+    const config: ProxySiteConfig = { methods: ['POST'] };
     const req1 = new Request('https://example.com/', { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
@@ -90,9 +90,9 @@ describe('generateCacheKey', () => {
   });
 
   it('Body 过滤应该生效', async () => {
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['POST'],
-      body: { include: ['id'] }
+      body: ['id']
     };
     const req1 = new Request('https://example.com/', { 
       method: 'POST', 
@@ -111,8 +111,8 @@ describe('generateCacheKey', () => {
   // ========== 新增测试：正则/Glob 模式匹配 ==========
 
   it('Query 正则排除应该生效', async () => {
-    const config: SiteCacheConfig = {
-      query: { exclude: [/^utm_/, /^_/] }
+    const config: ProxySiteConfig = {
+      query: ['*', '!utm_*', '!_*']
     };
 
     const req1 = new Request('https://example.com/?id=1&utm_source=google&utm_campaign=test');
@@ -122,8 +122,8 @@ describe('generateCacheKey', () => {
   });
 
   it('Headers Glob 排除应该生效', async () => {
-    const config: SiteCacheConfig = {
-      headers: { exclude: ['x-dynamic-*'] }
+    const config: ProxySiteConfig = {
+      headers: ['*', '!x-dynamic-*']
     };
 
     const req1 = new Request('https://example.com/', { headers: { 'x-dynamic-id': '123' } });
@@ -133,7 +133,7 @@ describe('generateCacheKey', () => {
   });
 
   it('应该默认排除 cookie header', async () => {
-    const config: SiteCacheConfig = {};
+    const config: ProxySiteConfig = {};
 
     const req1 = new Request('https://example.com/', { headers: { 'cookie': 'session=abc' } });
     const req2 = new Request('https://example.com/', { headers: { 'cookie': 'session=xyz' } });
@@ -142,7 +142,7 @@ describe('generateCacheKey', () => {
   });
 
   it('非 JSON body 正则提取应该生效', async () => {
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
       body: {
         extract: /op=([^&]+)&id=([^&]+)/
@@ -164,7 +164,7 @@ describe('generateCacheKey', () => {
   });
 
   it('多捕获组应该用冒号拼接', async () => {
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
       body: {
         extract: /action=([^&]+).*?id=([^&]+)/
@@ -186,7 +186,7 @@ describe('generateCacheKey', () => {
   });
 
   it('捕获组排序应该消除顺序差异', async () => {
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
       body: {
         extract: /(?:op|id)=([^&]+).*(?:op|id)=([^&]+)/,

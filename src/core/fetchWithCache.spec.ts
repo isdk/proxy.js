@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { SmartCache, fetchWithCache } from './index';
-import { SiteCacheConfig } from '../types';
+import { ProxySiteConfig } from '../types';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 
 describe('fetchWithCache', () => {
-  const config: SiteCacheConfig = {
+  const config: ProxySiteConfig = {
     staleIfError: true,
   };
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SmartCache, fetchWithCache } from './index';
-import { SiteCacheConfig } from '../types';
+import { ProxySiteConfig } from '../types';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -16,8 +16,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持路径正则匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('path-regex');
-    const config: SiteCacheConfig = {
-      cacheRules: [
+    const config: ProxySiteConfig = {
+      rules: [
         { path: /^\/api\/v[12]\// }
       ]
     };
@@ -41,8 +41,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持路径 Glob 匹配 (含否定 !)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('path-glob');
-    const config: SiteCacheConfig = {
-      cacheRules: [
+    const config: ProxySiteConfig = {
+      rules: [
         { path: '/api/**/!(private)*' }
       ]
     };
@@ -62,8 +62,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持 Query 值正则匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('query-regex');
-    const config: SiteCacheConfig = {
-      cacheRules: [
+    const config: ProxySiteConfig = {
+      rules: [
         { query: { type: /^(user|admin)$/ } }
       ]
     };
@@ -83,10 +83,10 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持 Body 内容正则匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-match');
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
-      cacheRules: [
-        { method: 'POST', body: /"action":"cache"/ }
+      rules: [
+        { methods: ['POST'], body: /"action":"cache"/ }
       ]
     };
 
@@ -115,7 +115,7 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('generateCacheKey 应该支持非 JSON Body 的正则提取', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-extract');
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
       body: {
         extract: /op=([^&]+)&id=([^&]+)/
@@ -150,10 +150,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('KeyFilterConfig 应该支持正则包含/排除', async () => {
     const { cache, activeCacheWrites } = await createTestCache('key-filter-regex');
-    const config: SiteCacheConfig = {
-      query: {
-        exclude: [/^utm_/, 'timestamp']
-      }
+    const config: ProxySiteConfig = {
+      query: ['*', '!utm_*', '!timestamp']
     };
 
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
@@ -172,10 +170,10 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('cacheRules 应该支持 bodyType 约束', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-type-constraint');
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
-      cacheRules: [
-        { method: 'POST', bodyType: 'json', body: /"ok":true/ }
+      rules: [
+        { methods: ['POST'], body: { type: 'json', match: { ok: /true/ } } }
       ]
     };
 
@@ -204,10 +202,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('KeyFilterConfig 应该支持 Glob 模式', async () => {
     const { cache, activeCacheWrites } = await createTestCache('key-filter-glob');
-    const config: SiteCacheConfig = {
-      headers: {
-        exclude: ['x-dynamic-*']
-      }
+    const config: ProxySiteConfig = {
+      headers: ['*', '!x-dynamic-*']
     };
 
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
@@ -229,7 +225,7 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('body 提取应该支持多个捕获组并用冒号拼接', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-multi-groups');
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
       body: {
         extract: /action=([^&]+).*?id=([^&]+)/
@@ -262,13 +258,13 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('body maxLength 应该限制匹配范围', async () => {
     const { cache, activeCacheWrites } = await createTestCache('max-body-length');
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
       body: {
         maxLength: 10
       },
-      cacheRules: [
-        { method: 'POST', body: '*findme*' }
+      rules: [
+        { methods: ['POST'], body: '*findme*' }
       ]
     };
 
@@ -291,8 +287,8 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('应该支持深层 Glob 排除逻辑', async () => {
     const { cache, activeCacheWrites } = await createTestCache('deep-glob-exclude');
-    const config: SiteCacheConfig = {
-      cacheRules: [
+    const config: ProxySiteConfig = {
+      rules: [
         // 使用数组模式，利用 picomatch 的多模式匹配能力
         { path: ['/api/**/*.json', '!**/private/**'] }
       ]
@@ -313,7 +309,7 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('Body 正则提取应该支持排序以消除顺序敏感', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-extract-sort');
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
       body: {
         extract: /(?:op|id)=([^&]+).*(?:op|id)=([^&]+)/,
@@ -342,9 +338,9 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
 
   it('应该能正确处理带有参数的 Content-Type', async () => {
     const { cache, activeCacheWrites } = await createTestCache('content-type-params');
-    const config: SiteCacheConfig = {
+    const config: ProxySiteConfig = {
       methods: ['POST'],
-      cacheRules: [{ method: 'POST', bodyType: 'json' }]
+      rules: [{ methods: ['POST'], body: { type: 'json' } }]
     };
 
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {

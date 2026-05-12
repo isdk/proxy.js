@@ -1,57 +1,82 @@
-import { isAllowed } from './isAllowed';
-import { KeyFilterConfig } from '../types';
+import { isMatch, isAllowed } from './index';
+import type { ProxyFieldConfig, ProxyMatchPatterns } from '../types';
 
 /**
- * 从源对象中根据过滤配置提取数据并标准化。
- *
- * 此函数主要用于生成缓存指纹。它会：
- * 1. 根据 `config` (include/exclude) 过滤键，调用 `isAllowed` 判断每个键是否允许。
- * 2. 对键进行排序以保证指纹的一致性。
- * 3. 将所有键转换为小写。
- * 4. 将值统一包装为数组并进行排序，消除数组项顺序差异。
- *
- * **关于 `defaultAllowed` 参数**：
- * - 只有当没有配置 `include` 和 `exclude` 时，`defaultAllowed` 才会生效。
- * - 如果配置了 `include`（即使为空数组），`defaultAllowed` 也不会生效。
- * - 详见 `isAllowed` 函数的优先级逻辑。
- *
- * @param source 原始数据对象 (如 QueryParams, Headers, Cookies)
- * @param config 过滤配置，支持 `include`（白名单）和 `exclude`（黑名单）
- * @param defaultAllowed 当没有配置时的默认值（默认 `false`，即不提取任何键）
- * @returns 标准化后的数据 Map，键为小写，值为排序后的字符串数组
- *
- * @example
- * ```typescript
- * const headers = { 'Content-Type': 'application/json', 'X-Request-Id': '123' };
- *
- * // 默认不提取任何键
- * extractData(headers); // {}
- *
- * // 提取所有键
- * extractData(headers, undefined, true); // { 'content-type': ['application/json'], 'x-request-id': ['123'] }
- *
- * // 白名单
- * extractData(headers, { include: ['content-type'] }); // { 'content-type': ['application/json'] }
- *
- * // 黑名单（需要 include 或 defaultAllowed）
- * extractData(headers, { include: ['*'], exclude: ['x-request-id'] }, true); // { 'content-type': ['application/json'] }
- * ```
+ * Universal Data Extraction and Filtering Utility (for Objects)
+ * 通用数据提取与过滤函数 (针对对象)
+ * 
+ * Core Logic:
+ * 1. If no config: Extract all or none based on defaultAllowed.
+ * 2. If config is Array/Pattern: Filter by Key using MatchPatterns logic.
+ * 3. If config is Record: Precise field-level extraction:
+ *    - true: Extract this field (full).
+ *    - false: Exclude this field.
+ *    - Patterns: Match/extract based on the field's VALUE using Glob/Regex.
+ * 
+ * Extracted values are normalized into sorted string arrays for fingerprint stability.
+ * 提取后的值统一标准化为排序后的字符串数组，以确保指纹稳定性。
+ * 
+ * @param source Original data object (Query, Headers, Cookies, etc.)
+ * @param config Filtering configuration (MatchPatterns or Record)
+ * @param defaultAllowed Default policy when no pattern matches (default: true)
  */
-export const extractData = (
+export function extractData(
   source: Record<string, any>,
-  config?: KeyFilterConfig,
-  defaultAllowed?: boolean,
-): Record<string, string[]> => {
+  config?: ProxyFieldConfig | ProxyMatchPatterns,
+  defaultAllowed: boolean = true
+): Record<string, string[]> {
   const result: Record<string, string[]> = {};
-  Object.keys(source)
-    .filter((key) => isAllowed(key, config, defaultAllowed))
-    .sort()
-    .forEach((key) => {
-      const val = source[key];
-      if (val != null) {
-        // 统一转换为数组并排序，确保指纹一致性
-        result[key.toLowerCase()] = Array.isArray(val) ? [...val].sort() : [val];
+
+  // 辅助函数：标准化值为排序后的字符串数组
+  const normalize = (val: any): string[] => {
+    if (val == null) return [];
+    const arr = Array.isArray(val) ? val.map(String) : [String(val)];
+    const filtered = arr.filter(v => v != null && v !== 'null' && v !== 'undefined');
+    return filtered.sort();
+  };
+
+  if (!config) {
+    if (defaultAllowed) {
+      for (const [key, val] of Object.entries(source)) {
+        const normalizedValue = normalize(val);
+        if (normalizedValue.length > 0) {
+          result[key.toLowerCase()] = normalizedValue;
+        }
       }
-    });
+    }
+    return result;
+  }
+
+  if (Array.isArray(config) || typeof config === 'string' || config instanceof RegExp) {
+    // 数组/单值模式：对 Key 进行过滤
+    for (const key of Object.keys(source)) {
+      const normalizedValue = normalize(source[key]);
+      if (normalizedValue.length > 0 && isAllowed(key.toLowerCase(), config as ProxyMatchPatterns, defaultAllowed)) {
+        result[key.toLowerCase()] = normalizedValue;
+      }
+    }
+  } else {
+    // Record 模式：字段级精准控制
+    for (const [key, patterns] of Object.entries(config)) {
+      const actualKey = Object.keys(source).find(k => k.toLowerCase() === key.toLowerCase()) || key;
+      const val = source[actualKey];
+
+      if (val === undefined) continue;
+
+      if (patterns === true) {
+        result[key.toLowerCase()] = normalize(val);
+      } else if (patterns === false) {
+        // 排除
+      } else {
+        // 值匹配模式
+        const normalizedVal = normalize(val);
+        const matched = normalizedVal.filter(v => isMatch(patterns as ProxyMatchPatterns, v));
+        if (matched.length > 0) {
+          result[key.toLowerCase()] = matched.sort();
+        }
+      }
+    }
+  }
+
   return result;
-};
+}

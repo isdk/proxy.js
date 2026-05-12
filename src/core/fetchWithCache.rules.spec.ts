@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterAll } from 'vitest';
 import { SmartCache, fetchWithCache } from './index';
-import { SiteCacheConfig } from '../types';
+import { ProxySiteConfig } from '../types';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -17,7 +17,7 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('默认情况下不应该缓存 POST 请求', async () => {
     const { cache, activeCacheWrites } = await createTestCache('no-post-default');
-    const config: SiteCacheConfig = {};
+    const config: ProxySiteConfig = {};
     const request = new Request('https://api.example.com/post', { method: 'POST' });
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('posted', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
@@ -33,7 +33,7 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('显式配置 methods 时应该允许缓存 POST', async () => {
     const { cache, activeCacheWrites } = await createTestCache('post-allowed');
-    const config: SiteCacheConfig = { methods: ['GET', 'POST'] };
+    const config: ProxySiteConfig = { methods: ['GET', 'POST'] };
     const request = new Request('https://api.example.com/post', { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -55,10 +55,10 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('cacheRules 应该能精细控制哪些 POST 被缓存', async () => {
     const { cache, activeCacheWrites } = await createTestCache('post-rules');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['GET', 'POST'],
-      cacheRules: [
-        { method: 'POST', path: '/cache-me' }
+      rules: [
+        { methods: ['POST'], path: '/cache-me' }
       ]
     };
     
@@ -84,9 +84,9 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('cacheRules 应该支持多条规则 (OR 逻辑)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('multi-rules');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['GET'],
-      cacheRules: [
+      rules: [
         { path: '/a' },
         { path: '/b' }
       ]
@@ -111,10 +111,10 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('cacheRules 应该支持 Query 参数匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('query-rules');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['GET', 'POST'],
-      cacheRules: [
-        { method: 'POST', query: { cache: 'true' } }
+      rules: [
+        { methods: ['POST'], query: { cache: 'true' } }
       ]
     };
     
@@ -140,9 +140,9 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('cacheRules 应该支持 Query 布尔匹配 (存在/不存在)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('query-bool-rules');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['GET'],
-      cacheRules: [
+      rules: [
         { query: { 'require-me': true, 'forbid-me': false } }
       ]
     };
@@ -166,9 +166,9 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('应该支持 Body 过滤集成测试：过滤动态字段后实现缓存命中', async () => {
     const { cache, activeCacheWrites } = await createTestCache('body-filter-integration');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['POST'],
-      body: { include: ['id'] } // 只根据 id 缓存
+      body: { match: { id: true } } // 只根据 id 缓存
     };
     
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('data', {
@@ -199,7 +199,7 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('非 JSON Body 应该回退到原始 Body 哈希', async () => {
     const { cache, activeCacheWrites } = await createTestCache('non-json-body');
-    const config: SiteCacheConfig = { methods: ['POST'] };
+    const config: ProxySiteConfig = { methods: ['POST'] };
     
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('data', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
@@ -223,7 +223,7 @@ describe('fetchWithCache Rules & POST', () => {
   it('应该支持 PUT 方法的缓存 (配合 forceCache)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('put-method');
     // 注意：PUT 不是标准的可缓存方法，必须配合 forceCache 使用
-    const config: SiteCacheConfig = { methods: ['PUT'], forceCache: true };
+    const config: ProxySiteConfig = { methods: ['PUT'], forceCache: true };
     
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('updated', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
@@ -242,7 +242,7 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('应该支持 POST + forceCache (即使后端没有缓存标头)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('post-force');
-    const config: SiteCacheConfig = { methods: ['POST'], forceCache: true };
+    const config: ProxySiteConfig = { methods: ['POST'], forceCache: true };
     
     // 模拟一个没有任何 Cache-Control 的后端响应
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('no-cache-data', {
@@ -265,9 +265,9 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('cacheRules 内部应该是 AND 逻辑 (同时匹配 path 和 query)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('rule-and-logic');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['GET'],
-      cacheRules: [
+      rules: [
         { path: '/api', query: { v: '1' } }
       ]
     };
@@ -291,7 +291,7 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('处理畸形 JSON Body 时应平滑回退', async () => {
     const { cache, activeCacheWrites } = await createTestCache('malformed-json');
-    const config: SiteCacheConfig = { methods: ['POST'] };
+    const config: ProxySiteConfig = { methods: ['POST'] };
     
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
@@ -316,7 +316,7 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('不同 Body 的并发 POST 不应发生误合并 (Coalescing Isolation)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('post-coalesce-iso');
-    const config: SiteCacheConfig = { methods: ['POST'] };
+    const config: ProxySiteConfig = { methods: ['POST'] };
     
     // 模拟慢速请求
     const mockFetcher = vi.fn().mockImplementation(async () => {
@@ -341,10 +341,10 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('规则中的 method 应该严格匹配', async () => {
     const { cache, activeCacheWrites } = await createTestCache('method-strict');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['GET', 'POST'],
-      cacheRules: [
-        { method: 'POST', path: '/api' } // 仅对 /api 的 POST 进行缓存
+      rules: [
+        { methods: ['POST'], path: '/api' } // 仅对 /api 的 POST 进行缓存
       ]
     };
     
@@ -363,7 +363,7 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('应该支持空 Body 的 POST', async () => {
     const { cache, activeCacheWrites } = await createTestCache('empty-post');
-    const config: SiteCacheConfig = { methods: ['POST'] };
+    const config: ProxySiteConfig = { methods: ['POST'] };
     
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {
       headers: { 'Cache-Control': 'public, max-age=3600' }
@@ -382,9 +382,9 @@ describe('fetchWithCache Rules & POST', () => {
 
   it('Content-Type 包含额外参数时也应正确识别为 JSON', async () => {
     const { cache, activeCacheWrites } = await createTestCache('json-charset');
-    const config: SiteCacheConfig = { 
+    const config: ProxySiteConfig = { 
       methods: ['POST'],
-      body: { include: ['id'] }
+      body: { match: { id: true } }
     };
     
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('ok', {

@@ -3,13 +3,13 @@ import { SmartCache } from './SmartCache';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-import { CacheMetadata } from '../types';
+import { ProxyCacheMetadata } from '../types';
 
 describe('SmartCache', () => {
   const storagePath = path.join(os.tmpdir(), `isdk-proxy-smart-test-${Date.now()}`);
   let cache: SmartCache;
 
-  const mockMetadata: CacheMetadata = {
+  const mockMetadata: ProxyCacheMetadata = {
     status: 200,
     headers: { 'content-type': 'text/plain' },
     policy: {},

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterAll } from 'vitest';
 import { SmartCache, fetchWithCache } from './index';
-import type { SiteCacheConfig } from '../types';
+import type { ProxySiteConfig } from '../types';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';

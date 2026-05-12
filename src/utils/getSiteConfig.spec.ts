@@ -4,7 +4,7 @@ import { ProxyConfig } from '../types';
 
 describe('getSiteConfig URL Matching', () => {
   const mockConfig: ProxyConfig = {
-    default: { methods: ['GET'] },
+    methods: ['GET'],
     sites: {
       'https://api.example.com/v1/*': { methods: ['POST'] }, // Glob
       '/^https:\\/\\/api\\.example\\.com\\/v2\\//': { methods: ['PUT'] }, // Regex String

@@ -3,9 +3,9 @@ import { pipeline } from 'stream/promises';
 import CachePolicy from 'http-cache-semantics';
 import type { SmartCache } from './SmartCache';
 import { generateCacheKey } from './generateCacheKey';
-import { SiteCacheConfig, CacheMetadata, CacheEntry } from '../types';
+import { ProxySiteConfig, ProxyCacheMetadata, ProxyCacheEntry, ProxyCacheRule } from '../types';
 import { OfflineCacheMissError } from '../errors';
-import { isCacheable } from './isCacheable';
+import { getEffectiveConfigFromRequest, isCacheable } from './isCacheable';
 
 /**
  * fetchWithCache 选项
@@ -13,8 +13,8 @@ import { isCacheable } from './isCacheable';
 export interface FetchWithCacheOptions {
   /** 混合缓存实例 */
   cache: SmartCache;
-  /** 站点级缓存配置 */
-  config: SiteCacheConfig;
+  /** 站点级基础配置 */
+  config: ProxySiteConfig;
   /** 是否启用后台异步更新 (SWR) */
   backgroundUpdate?: boolean;
   /** 后台更新 Promise 触发时的回调 */
@@ -33,11 +33,12 @@ export interface FetchWithCacheContext extends FetchWithCacheOptions {
   fetcher: (req: Request) => Promise<Response>;
   cacheKey: string;
   activeCacheWrites: Map<string, Promise<void>>;
+  /** 最终生效的合并配置 */
+  effectiveConfig: ProxyCacheRule;
 }
 
 /**
  * 核心辅助：将 Buffer、Node Stream 或 Uint8Array 转换为标准的 Web Response Body
- * 特别修复了对 Pipeline 等非标准 Readable 流的兼容性，支持 Readable.toWeb。
  */
 function createResponseBody(body: any): BodyInit {
   if (body instanceof Buffer) {
@@ -45,7 +46,6 @@ function createResponseBody(body: any): BodyInit {
   }
   if (body && typeof body.pipe === 'function') {
     try {
-      // 关键修复：兼容 Pipeline 等非标准 Readable 流
       const readable = (typeof body._read === 'function' && typeof body._readableState === 'object')
         ? body
         : Readable.from(body);
@@ -60,7 +60,7 @@ function createResponseBody(body: any): BodyInit {
 /**
  * 构建响应对象
  */
-function buildResponseFromCache(entry: CacheEntry, cacheStatus: string): Response {
+function buildResponseFromCache(entry: ProxyCacheEntry, cacheStatus: string): Response {
   const body = (entry.status === 204 || entry.status === 304 || entry.status < 200)
     ? null
     : createResponseBody(entry.body);
@@ -81,11 +81,14 @@ async function buildFetchWithCacheContext(
 ): Promise<FetchWithCacheContext> {
   const genKey = options.generateKey || generateCacheKey;
   const cacheKey = await genKey(request, options.config);
+  const effectiveConfig = await getEffectiveConfigFromRequest(request, options.config);
+
   return {
     ...options,
     request,
     fetcher,
     cacheKey,
+    effectiveConfig,
     activeCacheWrites: options.activeCacheWrites || new Map<string, Promise<void>>()
   };
 }
@@ -93,7 +96,7 @@ async function buildFetchWithCacheContext(
 /**
  * 评估缓存策略状态
  */
-function evaluateCachePolicy(ctx: FetchWithCacheContext, entry: CacheEntry): 'HIT' | 'STALE' {
+function evaluateCachePolicy(ctx: FetchWithCacheContext, entry: ProxyCacheEntry): 'HIT' | 'STALE' {
   const policy = CachePolicy.fromObject(entry.policy);
   const reqForPolicy = {
     url: entry.url,
@@ -107,7 +110,7 @@ function evaluateCachePolicy(ctx: FetchWithCacheContext, entry: CacheEntry): 'HI
 /**
  * 触发后台 SWR 更新
  */
-function triggerBackgroundUpdate(ctx: FetchWithCacheContext, fallbackEntry: CacheEntry): void {
+function triggerBackgroundUpdate(ctx: FetchWithCacheContext, fallbackEntry: ProxyCacheEntry): void {
   if (ctx.activeCacheWrites.has(ctx.cacheKey)) return;
 
   const promise = executeFetchAndCache(ctx, fallbackEntry).catch(error => {
@@ -139,7 +142,7 @@ async function waitForActiveCacheWrite(ctx: FetchWithCacheContext): Promise<Resp
 /**
  * 执行 Fetch 并写入缓存
  */
-async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: CacheEntry | null): Promise<Response> {
+async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: ProxyCacheEntry | null): Promise<Response> {
   let resolveWrite!: () => void;
   let rejectWrite!: (err: any) => void;
 
@@ -162,7 +165,7 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set('x-proxy-cache', 'MISS');
 
-    if (!newPolicy.storable() && !ctx.config.forceCache) {
+    if (!newPolicy.storable() && !ctx.effectiveConfig.forceCache) {
       resolveWrite();
       return new Response(response.body, {
         status: response.status,
@@ -171,7 +174,7 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
       });
     }
 
-    const metadata: Omit<CacheMetadata, 'size'> = {
+    const metadata: Omit<ProxyCacheMetadata, 'size'> = {
       status: response.status,
       headers: Object.fromEntries(response.headers),
       policy: newPolicy.toObject(),
@@ -207,7 +210,7 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
 
   } catch (error) {
     rejectWrite(error);
-    if (fallbackEntry && ctx.config.staleIfError) {
+    if (fallbackEntry && ctx.effectiveConfig.staleIfError) {
       return buildResponseFromCache(fallbackEntry, 'STALE_IF_ERROR');
     }
     throw error;
@@ -216,42 +219,29 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
 
 /**
  * 核心协调函数：协调请求、缓存命中、并发控制和 SWR
- *
- * 流程如下：
- * 1. 初始化上下文并生成缓存键。
- * 2. 检查离线模式：若开启则强读取，未命中直接抛错。
- * 3. 检查请求是否符合缓存规则 (isCacheable)。
- * 4. 尝试读取缓存并判定状态 (HIT / STALE)。
- * 5. 处理 SWR (后台更新)。
- * 6. 处理请求合并 (Request Coalescing)，防止缓存击穿。
- * 7. 若缓存缺失，发起网络请求并流式写入。
- *
- * @param request - 标准 Web Request 对象
- * @param fetcher - 底层发起真实请求的函数
- * @param options - 缓存协调配置项
- * @returns 标准 Web Response 对象 (带 x-proxy-cache 标头)
  */
 export async function fetchWithCache(
   request: Request,
   fetcher: (req: Request) => Promise<Response>,
   options: FetchWithCacheOptions
 ): Promise<Response> {
-  const { config } = options;
-
-  // 1. 初始化上下文（生成 Key）
+  // 1. 初始化上下文（生成 Key 并合并配置）
   const ctx = await buildFetchWithCacheContext(request, fetcher, options);
+  const { effectiveConfig } = ctx;
 
   // 2. 尝试读取缓存
   const cachedEntry = await ctx.cache.get(ctx.cacheKey);
 
-  // 3. 处理离线模式：离线模式下，如果有缓存直接给，没有就报错
-  if (config.offline) {
+  // 3. 处理离线模式：使用最终合并后的 effectiveConfig
+  if (effectiveConfig.offline) {
     if (cachedEntry) return buildResponseFromCache(cachedEntry, 'OFFLINE_HIT');
     throw new OfflineCacheMissError(request.url);
   }
 
   // 4. 判断当前请求是否允许进入缓存流程
-  if (!(await isCacheable(request, config))) {
+  // 注意：isCacheable 内部也会尝试匹配 rules，这里已经匹配过了，
+  // 但为了逻辑解耦，我们依然调用它（它内部很快，因为 bodyState 可能已被缓存，或者这里我们可以优化）。
+  if (!(await isCacheable(request, options.config))) {
     return fetcher(request);
   }
 

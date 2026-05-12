@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { SmartCache, fetchWithCache } from './index';
 import { OfflineCacheMissError, OfflineCacheMissErrorCode } from '../errors';
-import type { SiteCacheConfig } from '../types';
+import type { ProxySiteConfig } from '../types';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -48,7 +48,7 @@ describe('Offline Mode', () => {
   describe('offline mode', () => {
     it('应该返回 OFFLINE_HIT 当缓存存在时', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-hit');
-      const offlineConfig: SiteCacheConfig = { offline: true };
+      const offlineConfig: ProxySiteConfig = { offline: true };
 
       // 先正常缓存数据
       const request = new Request('https://api.example.com/data');
@@ -68,7 +68,7 @@ describe('Offline Mode', () => {
 
     it('应该抛出 OfflineCacheMissError 当缓存不存在时', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-miss');
-      const offlineConfig: SiteCacheConfig = { offline: true };
+      const offlineConfig: ProxySiteConfig = { offline: true };
 
       const request = new Request('https://api.example.com/no-such-data');
 
@@ -82,7 +82,7 @@ describe('Offline Mode', () => {
 
     it('offline 模式下不应调用 fetcher', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-no-fetch');
-      const offlineConfig: SiteCacheConfig = { offline: true };
+      const offlineConfig: ProxySiteConfig = { offline: true };
 
       // 先正常缓存数据
       const request = new Request('https://api.example.com/fetch-test');
@@ -108,7 +108,7 @@ describe('Offline Mode', () => {
 
     it('offline 模式下并发请求应都能命中缓存', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-concurrent');
-      const offlineConfig: SiteCacheConfig = { offline: true };
+      const offlineConfig: ProxySiteConfig = { offline: true };
 
       // 先正常缓存数据
       const request = new Request('https://api.example.com/concurrent');
@@ -133,7 +133,7 @@ describe('Offline Mode', () => {
 
     it('offline 模式下即使缓存过期也应返回 OFFLINE_HIT', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-stale');
-      const offlineConfig: SiteCacheConfig = { offline: true };
+      const offlineConfig: ProxySiteConfig = { offline: true };
 
       // 先缓存一个已过期的数据
       const request = new Request('https://api.example.com/stale-data');
@@ -156,7 +156,7 @@ describe('Offline Mode', () => {
 
     it('offline 模式下不应触发 staleIfError', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-staleiferror');
-      const offlineConfig: SiteCacheConfig = { offline: true, staleIfError: true };
+      const offlineConfig: ProxySiteConfig = { offline: true, staleIfError: true };
 
       // 没有任何缓存
       const request = new Request('https://api.example.com/no-cache');
@@ -173,7 +173,7 @@ describe('Offline Mode', () => {
 
     it('offline 模式下不应触发 SWR 后台更新', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-swr');
-      const offlineConfig: SiteCacheConfig = { offline: true };
+      const offlineConfig: ProxySiteConfig = { offline: true };
 
       // 先缓存一个过期数据
       const request = new Request('https://api.example.com/swr-offline');
@@ -203,7 +203,7 @@ describe('Offline Mode', () => {
 
     it('非 offline 模式下不应返回 OFFLINE_HIT', async () => {
       const { cache, activeCacheWrites } = await createTestCache('non-offline');
-      const normalConfig: SiteCacheConfig = { offline: false };
+      const normalConfig: ProxySiteConfig = { offline: false };
 
       // 先正常缓存
       const request = new Request('https://api.example.com/normal');
@@ -223,7 +223,7 @@ describe('Offline Mode', () => {
     it('offline 模式应阻断即使不可缓存的请求', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-uncacheable');
       // 默认只允许 GET/HEAD，这里我们尝试 POST
-      const offlineConfig: SiteCacheConfig = {
+      const offlineConfig: ProxySiteConfig = {
         offline: true,
         methods: ['GET'] // 显式只允许 GET
       };
