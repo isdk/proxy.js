@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.0](https://github.com/isdk/proxy.js/compare/v0.1.3...v0.2.0) (2026-05-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* modernizing proxy cache architecture with two-pass pipeline
+
+### Features
+
+* enhance ProxyCacheRule matching logic and supplement cookie gatekeeping ([bbcacb8](https://github.com/isdk/proxy.js/commit/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad))
+
+
+### Refactor
+
+* modernizing proxy cache architecture with two-pass pipeline ([d9bfa3b](https://github.com/isdk/proxy.js/commit/d9bfa3b5202ab28b99a9bb0e14fb0cf6e896abbc))
+
 ## [0.1.3](https://github.com/isdk/proxy.js/compare/v0.1.2...v0.1.3) (2026-05-11)
 
 
