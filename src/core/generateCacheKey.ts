@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isRegExpStr, toRegExp } from 'util-ex';
 import { extractData, normalizeBodyConfig } from '../utils';
-import { ProxySiteConfig, ProxyBodyConfig, ProxyFieldConfig } from '../types';
+import { ProxySiteConfig, ProxyFieldConfig } from '../types';
 import { getEffectiveConfigFromRequest } from './isCacheable';
 
 /**

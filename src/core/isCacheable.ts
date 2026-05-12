@@ -1,4 +1,4 @@
-import { ProxySiteConfig, ProxyCacheRule, ProxyFieldConfig, ProxyMatchPatterns, ProxyBodyConfig } from '../types';
+import { ProxySiteConfig, ProxyCacheRule, ProxyFieldConfig, ProxyMatchPatterns } from '../types';
 import { isMatch, getEffectiveConfig, normalizeBodyConfig } from '../utils';
 
 /**
@@ -47,7 +47,7 @@ export async function getMatchedRule(
 ): Promise<ProxyCacheRule | null> {
   const method = request.method.toUpperCase();
   const url = new URL(request.url);
-  
+
   // 从站点配置中获取全局 body 限制
   const siteBody = normalizeBodyConfig(config.body);
   const limit = siteBody.maxLength || 1024;
@@ -102,7 +102,7 @@ async function matchRule(
     if (typeof rule.body === 'object' && !Array.isArray(rule.body) && !(rule.body instanceof RegExp)) {
       const bodyConfig = normalizeBodyConfig(rule.body);
       const ruleLimit = bodyConfig.maxLength || bodyState.limit;
-      
+
       // 类型检查
       if (bodyConfig.type && bodyConfig.type !== actualType) return false;
 
