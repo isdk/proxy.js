@@ -6,7 +6,7 @@
 
 # Interface: PrefetchRequest
 
-Defined in: [packages/proxy/src/core/prefetch.ts:10](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/prefetch.ts#L10)
+Defined in: [packages/proxy/src/core/prefetch.ts:10](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/prefetch.ts#L10)
 
 预缓存请求选项
 
@@ -16,7 +16,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:10](https://github.com/isdk/pro
 
 > `optional` **request**: `RequestInit`
 
-Defined in: [packages/proxy/src/core/prefetch.ts:14](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/prefetch.ts#L14)
+Defined in: [packages/proxy/src/core/prefetch.ts:14](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/prefetch.ts#L14)
 
 可选的请求配置（method, headers, body 等）
 
@@ -26,6 +26,6 @@ Defined in: [packages/proxy/src/core/prefetch.ts:14](https://github.com/isdk/pro
 
 > **url**: `string`
 
-Defined in: [packages/proxy/src/core/prefetch.ts:12](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/core/prefetch.ts#L12)
+Defined in: [packages/proxy/src/core/prefetch.ts:12](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/prefetch.ts#L12)
 
 请求 URL

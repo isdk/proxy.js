@@ -6,24 +6,25 @@
 
 # Function: isMatch()
 
-> **isMatch**(`pattern`, `value`, `usePrefix`): `boolean`
+> **isMatch**(`pattern`, `value`, `usePrefix`, `defaultIfNoPositives`, `ignoreCase`): `boolean`
 
-Defined in: [packages/proxy/src/utils/matcher.ts:25](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/utils/matcher.ts#L25)
+Defined in: [packages/proxy/src/utils/matcher.ts:29](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/utils/matcher.ts#L29)
 
-通用匹配函数
+Universal matching function with advanced logic.
+通用匹配函数。
 
-逻辑优先级：
-1. 如果 pattern 是数组，遵循：(匹配任一正向模式) 且 (不匹配任一负向模式)。
-2. 如果 pattern 是 RegExp 对象，直接使用 regex.test(value)。
-3. 如果 pattern 是 "/regex/flags" 格式的字符串，转为 RegExp 后使用 test。
-4. 如果 pattern 是 Glob 字符串，使用 picomatch 进行匹配。
-5. 否则，根据 usePrefix 参数进行前缀匹配或精确匹配。
+Logic Priority (优先级):
+1. Array (数组): Follows "(Match ANY positives) AND (Match NO negatives)".
+2. RegExp (正则): Direct regex test.
+3. Regex String (正则字符串): Supports "/regex/flags" format.
+4. Glob (通配符): Uses picomatch for file-path style matching.
+5. String (普通字符串): Prefix or exact match based on `usePrefix`.
 
 ## Parameters
 
 ### pattern
 
-匹配模式 (RegExp 或 字符串 或 数组)
+Matching pattern (RegExp, string, or Array)
 
 `string` | `RegExp` | (`string` \| `RegExp`)[]
 
@@ -31,13 +32,25 @@ Defined in: [packages/proxy/src/utils/matcher.ts:25](https://github.com/isdk/pro
 
 `string`
 
-要匹配的值
+Value to test
 
 ### usePrefix
 
 `boolean` = `false`
 
-是否在普通字符串匹配时启用前缀匹配 (默认为 false，即精确匹配)
+Whether to use prefix matching for simple strings (default: false)
+
+### defaultIfNoPositives
+
+`boolean` = `true`
+
+Return value when only negatives are provided and none match (default: true)
+
+### ignoreCase
+
+`boolean` = `true`
+
+Whether to perform case-insensitive matching (default: true)
 
 ## Returns
 

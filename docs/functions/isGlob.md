@@ -8,9 +8,10 @@
 
 > **isGlob**(`str`): `boolean`
 
-Defined in: [packages/proxy/src/utils/matcher.ts:7](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/utils/matcher.ts#L7)
+Defined in: [packages/proxy/src/utils/matcher.ts:8](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/utils/matcher.ts#L8)
 
-判断一个模式是否为 Glob 模式
+Checks if a string is a Glob pattern.
+判断一个字符串是否为 Glob 模式。
 
 ## Parameters
 

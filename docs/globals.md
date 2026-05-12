@@ -11,19 +11,24 @@
 
 ## Interfaces
 
-- [BodyFilterConfig](interfaces/BodyFilterConfig.md)
-- [CacheEntry](interfaces/CacheEntry.md)
-- [CacheMetadata](interfaces/CacheMetadata.md)
-- [CacheRule](interfaces/CacheRule.md)
 - [FetchWithCacheContext](interfaces/FetchWithCacheContext.md)
 - [FetchWithCacheOptions](interfaces/FetchWithCacheOptions.md)
-- [KeyFilterConfig](interfaces/KeyFilterConfig.md)
 - [PrefetchOptions](interfaces/PrefetchOptions.md)
 - [PrefetchRequest](interfaces/PrefetchRequest.md)
 - [PrefetchResult](interfaces/PrefetchResult.md)
+- [ProxyBodyConfig](interfaces/ProxyBodyConfig.md)
+- [ProxyCacheEntry](interfaces/ProxyCacheEntry.md)
+- [ProxyCacheMetadata](interfaces/ProxyCacheMetadata.md)
+- [ProxyCacheRule](interfaces/ProxyCacheRule.md)
 - [ProxyConfig](interfaces/ProxyConfig.md)
-- [SiteCacheConfig](interfaces/SiteCacheConfig.md)
+- [ProxySiteConfig](interfaces/ProxySiteConfig.md)
 - [SmartCacheOptions](interfaces/SmartCacheOptions.md)
+
+## Type Aliases
+
+- [ProxyFieldConfig](type-aliases/ProxyFieldConfig.md)
+- [ProxyMatchPattern](type-aliases/ProxyMatchPattern.md)
+- [ProxyMatchPatterns](type-aliases/ProxyMatchPatterns.md)
 
 ## Variables
 
@@ -36,9 +41,13 @@
 - [extractData](functions/extractData.md)
 - [fetchWithCache](functions/fetchWithCache.md)
 - [generateCacheKey](functions/generateCacheKey.md)
+- [getEffectiveConfig](functions/getEffectiveConfig.md)
+- [getEffectiveConfigFromRequest](functions/getEffectiveConfigFromRequest.md)
+- [getMatchedRule](functions/getMatchedRule.md)
 - [getSiteConfig](functions/getSiteConfig.md)
 - [isAllowed](functions/isAllowed.md)
 - [isCacheable](functions/isCacheable.md)
 - [isGlob](functions/isGlob.md)
 - [isMatch](functions/isMatch.md)
+- [normalizeBodyConfig](functions/normalizeBodyConfig.md)
 - [prefetch](functions/prefetch.md)

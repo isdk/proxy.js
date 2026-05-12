@@ -6,9 +6,9 @@
 
 # Function: getSiteConfig()
 
-> **getSiteConfig**(`urlString`, `proxyConfig`): [`SiteCacheConfig`](../interfaces/SiteCacheConfig.md)
+> **getSiteConfig**(`urlString`, `proxyConfig`): [`ProxySiteConfig`](../interfaces/ProxySiteConfig.md)
 
-Defined in: [packages/proxy/src/utils/getSiteConfig.ts:17](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/utils/getSiteConfig.ts#L17)
+Defined in: [packages/proxy/src/utils/getSiteConfig.ts:17](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/utils/getSiteConfig.ts#L17)
 
 根据 URL 获取对应的站点缓存配置
 
@@ -16,7 +16,7 @@ Defined in: [packages/proxy/src/utils/getSiteConfig.ts:17](https://github.com/is
 1. 遍历 sites 中的所有 key。
 2. 如果 key 是正则或 Glob 格式字符串，则对完整 URL 进行匹配。
 3. 如果 key 是普通字符串，则作为 URL 前缀进行匹配。
-4. 返回第一个匹配到的配置；若均未匹配，则返回 defaultConfig。
+4. 返回第一个匹配到的配置；若均未匹配，则返回 proxyConfig 自身作为默认值。
 
 ## Parameters
 
@@ -34,6 +34,6 @@ Defined in: [packages/proxy/src/utils/getSiteConfig.ts:17](https://github.com/is
 
 ## Returns
 
-[`SiteCacheConfig`](../interfaces/SiteCacheConfig.md)
+[`ProxySiteConfig`](../interfaces/ProxySiteConfig.md)
 
 匹配到的站点配置

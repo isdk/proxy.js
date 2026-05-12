@@ -2,14 +2,14 @@
 
 ***
 
-[@isdk/proxy](../globals.md) / ProxyConfig
+[@isdk/proxy](../globals.md) / ProxySiteConfig
 
-# Interface: ProxyConfig
+# Interface: ProxySiteConfig
 
-Defined in: [packages/proxy/src/types.ts:133](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/types.ts#L133)
+Defined in: [packages/proxy/src/types.ts:119](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/types.ts#L119)
 
-Global Interceptor Configuration.
-代理拦截器全局配置。
+Site-level Cache Configuration.
+站点级缓存配置。
 
 ## Extends
 
@@ -139,15 +139,16 @@ Query 参数匹配与指纹提取配置。
 
 ***
 
-### sites?
+### rules?
 
-> `optional` **sites**: `Record`\<`string`, [`ProxySiteConfig`](ProxySiteConfig.md)\>
+> `optional` **rules**: [`ProxyCacheRule`](ProxyCacheRule.md)[]
 
-Defined in: [packages/proxy/src/types.ts:139](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/types.ts#L139)
+Defined in: [packages/proxy/src/types.ts:126](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/types.ts#L126)
 
-Granular cache configuration for specific domains.
-Key can be a hostname (example.com) or a matching pattern.
-针对特定域名的精细化缓存配置。
+List of granular path-based rules.
+If provided, request must match at least one rule to be cacheable.
+Matched rule will be deeply merged with site-level config.
+细化路径匹配规则列表。匹配到的规则将与站点级配置进行深度合并。
 
 ***
 
@@ -163,13 +164,3 @@ Fault tolerance: If backend fails (network error or 5xx), return stale cache if 
 #### Inherited from
 
 [`ProxyCacheRule`](ProxyCacheRule.md).[`staleIfError`](ProxyCacheRule.md#staleiferror)
-
-***
-
-### storagePath?
-
-> `optional` **storagePath**: `string`
-
-Defined in: [packages/proxy/src/types.ts:141](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/types.ts#L141)
-
-Physical storage path for disk cache (cacache). 磁盘缓存物理存储路径。

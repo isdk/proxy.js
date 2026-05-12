@@ -6,19 +6,15 @@
 
 # Function: isAllowed()
 
-> **isAllowed**(`key`, `config?`, `defaultAllowed?`): `boolean`
+> **isAllowed**(`key`, `patterns?`, `defaultAllowed?`): `boolean`
 
-Defined in: [packages/proxy/src/utils/isAllowed.ts:37](https://github.com/isdk/proxy.js/blob/a1563efa4c3081261eb3af8a6404f1b704b33bf1/src/utils/isAllowed.ts#L37)
+Defined in: [packages/proxy/src/utils/isAllowed.ts:25](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/utils/isAllowed.ts#L25)
 
 判断给定的键是否允许参与缓存指纹计算。
 
-**优先级逻辑**：
-1. `exclude` 命中 → 返回 `false`（优先级最高，会覆盖前面的结果）
-2. `include` 存在且命中 → 返回 `true`
-3. `include` 存在但不命中 → 返回 `false`
-4. 都没有配置 → 使用 `defaultAllowed`（未传则返回 `undefined`）
-
-**注意**：`include` 和 `exclude` 可以同时配置，此时 `exclude` 优先级更高。
+基于 V8 重构后的逻辑：
+1. 采用正交匹配范式，不再区分显式的 include/exclude 结构。
+2. 利用 `isMatch` 内部支持的数组和 `!` 否定模式来实现黑白名单。
 
 ## Parameters
 
@@ -28,38 +24,30 @@ Defined in: [packages/proxy/src/utils/isAllowed.ts:37](https://github.com/isdk/p
 
 要检查的键名
 
-### config?
+### patterns?
 
-[`KeyFilterConfig`](../interfaces/KeyFilterConfig.md)
+[`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md)
 
-过滤配置，支持 `include`（白名单）和 `exclude`（黑名单）
+匹配模式 (支持数组和 ! 否定)
 
 ### defaultAllowed?
 
-`boolean`
+`boolean` = `false`
 
-当没有配置或配置未命中时的默认值（可选）
+当没有配置时的默认值 (默认 false)
 
 ## Returns
 
 `boolean`
 
-是否允许。返回 `boolean` 或 `undefined`（当没有配置且未传 defaultAllowed 时）
+是否允许
 
 ## Example
 
 ```typescript
-// 无配置
-isAllowed('key'); // undefined
-
 // 白名单
-isAllowed('id', { include: ['id', 'name'] }); // true
-isAllowed('email', { include: ['id', 'name'] }); // false
+isAllowed('id', ['id', 'name']); // true
 
-// 黑名单
-isAllowed('password', { exclude: ['password'] }); // false
-isAllowed('name', { exclude: ['password'] }); // undefined
-
-// 设置默认值
-isAllowed('name', { exclude: ['password'] }, true); // true
+// 黑名单 (使用 ! 排除)
+isAllowed('timestamp', ['*', '!timestamp']); // false
 ```
