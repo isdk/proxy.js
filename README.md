@@ -66,9 +66,9 @@ Configure `methods` to enable POST caching and use field filters to ensure cache
 const myPostFetch = createCachedFetch({
   cache,
   config: {
-    methods: ['GET', 'POST'], 
+    methods: ['GET', 'POST'],
     // Query filtering: defaults to all, here excluding 'timestamp'
-    query: ['*', '!timestamp'], 
+    query: ['*', '!timestamp'],
     // Body filtering: field-level matching for JSON
     body: {
       match: { 'action': 'query', 'version': true },
@@ -113,11 +113,55 @@ const myPostFetch = createCachedFetch({
 > [!TIP]
 > **Exclusion Priority**: In a MatchPatterns array, if any `!` pattern matches, the overall result is `false`.
 
+### Advanced Matching & Boundary Cases
+
+`@isdk/proxy` distinguishes between two complementary matching modes: **MatchPatterns Mode** and **Record Mode**. Understanding their differences is crucial for robust configuration.
+
+#### 1. MatchPatterns Mode
+
+* **Types**: `string | RegExp | Array`
+* **Semantic**: **Existence Filter**. "At least one field in the request must match this pattern."
+* **Logic**: Based on `some` logic.
+
+| Config Example | Semantic | Result for Empty Request |
+| :--- | :--- | :--- |
+| `['*']` | Pass if any field exists. | ❌ Blocked (No keys to match) |
+| `['id', 'name']` | Must contain 'id' or 'name'. | ❌ Blocked |
+| `['*', '!sid']` | Must contain fields other than 'sid'.| ❌ Blocked |
+| `[]` (Empty Array) | Block all (No key can match an empty array).| ❌ Blocked |
+
+> [!TIP]
+> **MatchPatterns is best for Whitelists or coarse Blacklists.** e.g., `query: ['id']` means "the request must have an id parameter and will be cached based ONLY on that id."
+
+#### 2. Record Mode
+
+* **Types**: `Record<string, ProxyMatchPatterns | boolean>`
+* **Semantic**: **Field Validation**. Logic declarations for specific keys.
+* **Logic**: Based on `AND` logic.
+
+| Config Example | Semantic | Result for Empty Request |
+| :--- | :--- | :--- |
+| `{}` (Empty Object) | No validation rules. | ✅ Pass |
+| `{ sid: true }` | Explicitly requires 'sid' to exist. | ❌ Blocked |
+| `{ sid: false }` | Explicitly requires 'sid' to **NOT** exist. | ✅ Pass |
+| `{ lang: 'en' }` | Requires 'lang' to exist and match 'en'. | ❌ Blocked |
+
+#### 3. Boundary Cases Summary
+
+| Configuration | Matching Result | Recommended Usage |
+| :--- | :--- | :--- |
+| **`undefined`** | **Pass (Ignored)** | Default: no gatekeeping check for this category. |
+| **`{}` (Empty Object)**| **Pass (Valid)** | No rules defined means everything is allowed. |
+| **`[]` (Empty Array)** | **Fail (Invalid)** | No key can pass an empty matching set. |
+| **Empty Request** | **Depends on Category**| `query` passes by default; `headers/cookies` fail by default. |
+
+---
+
 ## Architecture: Two-Pass Logic
 
-1.  **First Pass: Gatekeeping**
+1. **First Pass: Gatekeeping**
     Uses `path`, `methods`, etc., to determine if the request is eligible for caching.
-2.  **Second Pass: Fingerprinting**
+2. **Second Pass: Fingerprinting**
     Uses the same field configurations to implicitly perform data extraction. For example, if `query` is `['*', '!token']`, the extraction phase automatically strips `token` before hashing.
 
 ## Adapters
@@ -269,8 +313,8 @@ const headers = { 'Content-Type': 'application/json', 'X-Token': 'abc' };
 extractData(headers, ['content-type']); // { 'content-type': ['application/json'] }
 
 // Object mode: precise Value matching
-extractData(headers, { 
-  'content-type': '/^application\/.*/' 
+extractData(headers, {
+  'content-type': '/^application\/.*/'
 }); // { 'content-type': ['application/json'] }
 ```
 

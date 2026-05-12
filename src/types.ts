@@ -36,7 +36,7 @@ export interface ProxyBodyConfig {
    * Field-level matching and extraction for JSON bodies.
    * 针对 JSON Body 的字段级匹配与提取。
    */
-  match?: ProxyFieldConfig;
+  match?: ProxyFieldConfig | ProxyMatchPatterns;
   /** 
    * Regex for extracting data from non-JSON (text) bodies.
    * 用于非 JSON (文本) Body 的提取正则表达式。
@@ -78,17 +78,17 @@ export interface ProxyCacheRule {
    * Query parameter matching and fingerprinting configuration.
    * Query 参数匹配与指纹提取配置。
    */
-  query?: ProxyFieldConfig;
+  query?: ProxyFieldConfig | ProxyMatchPatterns;
   /** 
    * Headers matching and fingerprinting configuration.
    * 请求头匹配与指纹提取配置。
    */
-  headers?: ProxyFieldConfig;
+  headers?: ProxyFieldConfig | ProxyMatchPatterns;
   /** 
    * Cookie matching and fingerprinting configuration.
    * Cookie 匹配与指纹提取配置。
    */
-  cookies?: ProxyFieldConfig;
+  cookies?: ProxyFieldConfig | ProxyMatchPatterns;
   /** 
    * Body matching and extraction configuration.
    * 请求体匹配与提取配置。

@@ -2,9 +2,13 @@ import { ProxySiteConfig, ProxyCacheRule, ProxyFieldConfig, ProxyMatchPatterns }
 import { isMatch, getEffectiveConfig, normalizeBodyConfig } from '../utils';
 
 /**
- * 通用字段匹配 (用于 Query, Headers, Cookies)
+ * 通用字段匹配 (用于 Query, Headers, Cookies, Body)
  */
-function matchField(source: URLSearchParams | Headers | Record<string, any>, config: ProxyFieldConfig | ProxyMatchPatterns): boolean {
+function matchField(
+  source: URLSearchParams | Headers | Record<string, any>,
+  config: ProxyFieldConfig | ProxyMatchPatterns,
+  defaultAllowed: boolean = true
+): boolean {
   if (config && typeof config === 'object' && !Array.isArray(config) && !(config instanceof RegExp)) {
     // Record 模式: 执行 AND 匹配
     for (const [key, pattern] of Object.entries(config)) {
@@ -33,7 +37,9 @@ function matchField(source: URLSearchParams | Headers | Record<string, any>, con
       ? Array.from((source as any).keys())
       : Object.keys(source);
 
-    return keys.some(key => isMatch(config as ProxyMatchPatterns, key as string));
+    if (keys.length === 0) return defaultAllowed;
+
+    return (keys as string[]).some(key => isMatch(config as ProxyMatchPatterns, key));
   }
 }
 
@@ -88,16 +94,31 @@ async function matchRule(
   if (rule.path && !isMatch(rule.path, url.pathname, true)) return false;
 
   // 3. Query 门控
-  if (rule.query && !matchField(url.searchParams, rule.query)) return false;
+  if (rule.query && !matchField(url.searchParams, rule.query, true)) return false;
 
   // 4. Headers 门控
-  if (rule.headers && !matchField(request.headers, rule.headers)) return false;
+  if (rule.headers && !matchField(request.headers, rule.headers, false)) return false;
 
-  // 5. Body 门控
+  // 5. Cookies 门控
+  if (rule.cookies) {
+    const cookieStr = request.headers.get('cookie') || '';
+    const cookieMap = Object.fromEntries(
+      cookieStr.split(';')
+        .map(c => c.trim())
+        .filter(Boolean)
+        .map(c => {
+          const parts = c.split('=');
+          return [parts[0], parts.slice(1).join('=')];
+        })
+    );
+    if (!matchField(cookieMap, rule.cookies, false)) return false;
+  }
+
+  // 6. Body 门控
   if (rule.body) {
     const contentType = request.headers.get('content-type') || '';
     const actualType = contentType.includes('application/json') ? 'json' :
-                     (contentType.includes('text/') || contentType.includes('application/xml') || contentType.includes('x-www-form-urlencoded')) ? 'text' : 'binary';
+      (contentType.includes('text/') || contentType.includes('application/xml') || contentType.includes('x-www-form-urlencoded')) ? 'text' : 'binary';
 
     if (typeof rule.body === 'object' && !Array.isArray(rule.body) && !(rule.body instanceof RegExp)) {
       const bodyConfig = normalizeBodyConfig(rule.body);
@@ -115,7 +136,7 @@ async function matchRule(
           } catch { (bodyState as any).json = {}; }
           bodyState.checked = true;
         }
-        if (!matchField((bodyState as any).json, bodyConfig.match)) return false;
+        if (!matchField((bodyState as any).json, bodyConfig.match, true)) return false;
       }
 
       // 正则/文本匹配 (针对 Text)
