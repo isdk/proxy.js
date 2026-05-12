@@ -6,7 +6,7 @@
 
 # Interface: PrefetchResult
 
-Defined in: [packages/proxy/src/core/prefetch.ts:34](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/prefetch.ts#L34)
+Defined in: [packages/proxy/src/core/prefetch.ts:34](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L34)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:34](https://github.com/isdk/pro
 
 > `optional` **errors**: `object`[]
 
-Defined in: [packages/proxy/src/core/prefetch.ts:40](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/prefetch.ts#L40)
+Defined in: [packages/proxy/src/core/prefetch.ts:40](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L40)
 
 失败详情
 
@@ -32,7 +32,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:40](https://github.com/isdk/pro
 
 > **failed**: `number`
 
-Defined in: [packages/proxy/src/core/prefetch.ts:38](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/prefetch.ts#L38)
+Defined in: [packages/proxy/src/core/prefetch.ts:38](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L38)
 
 失败数量
 
@@ -42,6 +42,6 @@ Defined in: [packages/proxy/src/core/prefetch.ts:38](https://github.com/isdk/pro
 
 > **succeeded**: `number`
 
-Defined in: [packages/proxy/src/core/prefetch.ts:36](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/prefetch.ts#L36)
+Defined in: [packages/proxy/src/core/prefetch.ts:36](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L36)
 
 成功数量

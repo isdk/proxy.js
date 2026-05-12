@@ -8,7 +8,7 @@
 
 > **ProxyFieldConfig** = `Record`\<`string`, [`ProxyMatchPatterns`](ProxyMatchPatterns.md) \| `boolean`\>
 
-Defined in: [packages/proxy/src/types.ts:23](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/types.ts#L23)
+Defined in: [packages/proxy/src/types.ts:23](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L23)
 
 Field-level configuration: Uses a Record structure to give each Key explicit gatekeeping and fingerprinting semantics.
 字段级配置：采用 Record 结构，赋予每个 Key 明确的门控与指纹提取语义。

@@ -8,7 +8,7 @@
 
 > **createCachedFetch**(`defaultOptions`): (`request`, `fetcher`, `overrideOptions?`) => `Promise`\<`Response`\>
 
-Defined in: [packages/proxy/src/core/createCachedFetch.ts:17](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/core/createCachedFetch.ts#L17)
+Defined in: [packages/proxy/src/core/createCachedFetch.ts:17](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/createCachedFetch.ts#L17)
 
 缓存请求工厂函数 (针对终端用户的顶层高阶 API)
 

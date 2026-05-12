@@ -8,7 +8,7 @@
 
 > **getSiteConfig**(`urlString`, `proxyConfig`): [`ProxySiteConfig`](../interfaces/ProxySiteConfig.md)
 
-Defined in: [packages/proxy/src/utils/getSiteConfig.ts:17](https://github.com/isdk/proxy.js/blob/bbcacb8b0dfe43d317743a3f98aa0f9f1b323aad/src/utils/getSiteConfig.ts#L17)
+Defined in: [packages/proxy/src/utils/getSiteConfig.ts:17](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/utils/getSiteConfig.ts#L17)
 
 根据 URL 获取对应的站点缓存配置
 
