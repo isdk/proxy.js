@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.1](https://github.com/isdk/proxy.js/compare/v0.2.0...v0.2.1) (2026-05-12)
+
+
+### Bug Fixes
+
+* **exports:** 修正 ESM "type": "module" 下的模块解析配置 ([6f3366d](https://github.com/isdk/proxy.js/commit/6f3366d94dc84bfa077995cd404aa1b780ba62a1))
+
 ## [0.2.0](https://github.com/isdk/proxy.js/compare/v0.1.3...v0.2.0) (2026-05-12)
 
 
