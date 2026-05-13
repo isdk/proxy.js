@@ -8,3 +8,4 @@ export * from './isAllowed';
 export * from './matcher';
 export * from './getSiteConfig';
 export * from './getEffectiveConfig';
+export * from './createResponse';

@@ -6,6 +6,7 @@ import { generateCacheKey } from './generateCacheKey';
 import { ProxySiteConfig, ProxyCacheMetadata, ProxyCacheEntry, ProxyCacheRule } from '../types';
 import { OfflineCacheMissError } from '../errors';
 import { getEffectiveConfigFromRequest, isCacheable } from './isCacheable';
+import { createResponse } from '../utils';
 
 /**
  * fetchWithCache 选项
@@ -65,9 +66,10 @@ function buildResponseFromCache(entry: ProxyCacheEntry, cacheStatus: string): Re
     ? null
     : createResponseBody(entry.body);
 
-  return new Response(body, {
+  return createResponse(body, {
     status: entry.status,
-    headers: { ...entry.headers, 'x-proxy-cache': cacheStatus }
+    headers: { ...entry.headers, 'x-proxy-cache': cacheStatus },
+    url: entry.url
   });
 }
 
@@ -167,10 +169,11 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
 
     if (!newPolicy.storable() && !ctx.effectiveConfig.forceCache) {
       resolveWrite();
-      return new Response(response.body, {
+      return createResponse(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: responseHeaders
+        headers: responseHeaders,
+        url: response.url
       });
     }
 
@@ -186,10 +189,11 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
     if (!response.body) {
       await ctx.cache.set(ctx.cacheKey, Buffer.alloc(0), metadata);
       resolveWrite();
-      return new Response(null, {
+      return createResponse(null, {
         status: response.status,
         statusText: response.statusText,
-        headers: responseHeaders
+        headers: responseHeaders,
+        url: response.url
       });
     }
 
@@ -202,10 +206,11 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
       .then(resolveWrite)
       .catch(rejectWrite);
 
-    return new Response(streamForClient, {
+    return createResponse(streamForClient, {
       status: response.status,
       statusText: response.statusText,
-      headers: responseHeaders
+      headers: responseHeaders,
+      url: response.url
     });
 
   } catch (error) {
