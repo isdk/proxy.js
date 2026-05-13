@@ -1,6 +1,8 @@
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import CachePolicy from 'http-cache-semantics';
+import { debug as debugFactory } from 'debug';
+
 import type { SmartCache } from './SmartCache';
 import { generateCacheKey } from './generateCacheKey';
 import { ProxySiteConfig, ProxyCacheMetadata, ProxyCacheEntry, ProxyCacheRule } from '../types';
@@ -37,6 +39,8 @@ export interface FetchWithCacheContext extends FetchWithCacheOptions {
   /** 最终生效的合并配置 */
   effectiveConfig: ProxyCacheRule;
 }
+
+const debug = debugFactory('@isdk/proxy:fetchWithCache');
 
 /**
  * 核心辅助：将 Buffer、Node Stream 或 Uint8Array 转换为标准的 Web Response Body
@@ -166,6 +170,7 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
 
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set('x-proxy-cache', 'MISS');
+    debug('executeFetch And Cache', ctx.request.url)
 
     if (!newPolicy.storable() && !ctx.effectiveConfig.forceCache) {
       resolveWrite();
@@ -253,6 +258,10 @@ export async function fetchWithCache(
   // 5. 判定命中状态
   if (cachedEntry) {
     const status = evaluateCachePolicy(ctx, cachedEntry);
+    debug('evaluateCachePolicy:', request.url, status)
+    if (cachedEntry.policy?.resh && Object.keys(cachedEntry.policy.resh).length) {
+      debug('evaluateCachePolicy:', 'resh =', JSON.stringify(cachedEntry.policy.resh))
+    }
 
     if (status === 'HIT') {
       return buildResponseFromCache(cachedEntry, 'HIT');
@@ -267,7 +276,10 @@ export async function fetchWithCache(
   // 6. 防击穿处理
   if (ctx.activeCacheWrites.has(ctx.cacheKey)) {
     const waitResponse = await waitForActiveCacheWrite(ctx);
-    if (waitResponse) return waitResponse;
+    if (waitResponse) {
+      debug('activeCacheWrites has this, waiting response', request.url)
+      return waitResponse;
+    }
   }
 
   // 7. 发起请求并缓存
