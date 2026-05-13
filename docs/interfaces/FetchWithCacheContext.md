@@ -6,7 +6,7 @@
 
 # Interface: FetchWithCacheContext
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:31](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L31)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:34](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L34)
 
 内部流水线上下文
 
@@ -20,7 +20,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:31](https://github.com/is
 
 > **activeCacheWrites**: `Map`\<`string`, `Promise`\<`void`\>\>
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:35](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L35)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:38](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L38)
 
 并发写入任务追踪器
 
@@ -34,7 +34,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:35](https://github.com/is
 
 > `optional` **backgroundUpdate**: `boolean`
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:19](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L19)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:22](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L22)
 
 是否启用后台异步更新 (SWR)
 
@@ -48,7 +48,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:19](https://github.com/is
 
 > **cache**: [`SmartCache`](../classes/SmartCache.md)
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:15](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L15)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:18](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L18)
 
 混合缓存实例
 
@@ -62,7 +62,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:15](https://github.com/is
 
 > **cacheKey**: `string`
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:34](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L34)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:37](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L37)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:34](https://github.com/is
 
 > **config**: [`ProxySiteConfig`](ProxySiteConfig.md)
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:17](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L17)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:20](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L20)
 
 站点级基础配置
 
@@ -84,7 +84,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:17](https://github.com/is
 
 > **effectiveConfig**: [`ProxyCacheRule`](ProxyCacheRule.md)
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:37](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L37)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:40](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L40)
 
 最终生效的合并配置
 
@@ -94,7 +94,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:37](https://github.com/is
 
 > **fetcher**: (`req`) => `Promise`\<`Response`\>
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:33](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L33)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:36](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L36)
 
 #### Parameters
 
@@ -112,7 +112,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:33](https://github.com/is
 
 > `optional` **generateKey**: (`req`, `config`) => `Promise`\<`string`\>
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:23](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L23)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:26](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L26)
 
 自定义缓存键生成函数
 
@@ -142,7 +142,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:23](https://github.com/is
 
 > `optional` **onBackgroundUpdate**: (`promise`) => `void`
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:21](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L21)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:24](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L24)
 
 后台更新 Promise 触发时的回调
 
@@ -166,4 +166,4 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:21](https://github.com/is
 
 > **request**: `Request`
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:32](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L32)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:35](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L35)

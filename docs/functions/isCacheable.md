@@ -8,7 +8,7 @@
 
 > **isCacheable**(`request`, `config`): `Promise`\<`boolean`\>
 
-Defined in: [packages/proxy/src/core/isCacheable.ts:171](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/isCacheable.ts#L171)
+Defined in: [packages/proxy/src/core/isCacheable.ts:171](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/isCacheable.ts#L171)
 
 判断当前请求是否满足可缓存的基础条件
 

@@ -6,7 +6,7 @@
 
 # Interface: PrefetchOptions
 
-Defined in: [packages/proxy/src/core/prefetch.ts:17](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L17)
+Defined in: [packages/proxy/src/core/prefetch.ts:17](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L17)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:17](https://github.com/isdk/pro
 
 > **cache**: [`SmartCache`](../classes/SmartCache.md)
 
-Defined in: [packages/proxy/src/core/prefetch.ts:23](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L23)
+Defined in: [packages/proxy/src/core/prefetch.ts:23](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L23)
 
 SmartCache 实例
 
@@ -24,7 +24,7 @@ SmartCache 实例
 
 > `optional` **concurrency**: `number`
 
-Defined in: [packages/proxy/src/core/prefetch.ts:27](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L27)
+Defined in: [packages/proxy/src/core/prefetch.ts:27](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L27)
 
 并发数，默认 3
 
@@ -34,7 +34,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:27](https://github.com/isdk/pro
 
 > **config**: [`ProxyConfig`](ProxyConfig.md)
 
-Defined in: [packages/proxy/src/core/prefetch.ts:21](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L21)
+Defined in: [packages/proxy/src/core/prefetch.ts:21](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L21)
 
 完整的代理配置
 
@@ -44,7 +44,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:21](https://github.com/isdk/pro
 
 > `optional` **fetcher**: (`req`) => `Promise`\<`Response`\>
 
-Defined in: [packages/proxy/src/core/prefetch.ts:25](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L25)
+Defined in: [packages/proxy/src/core/prefetch.ts:25](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L25)
 
 自定义 fetcher，默认使用 globalThis.fetch
 
@@ -64,7 +64,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:25](https://github.com/isdk/pro
 
 > `optional` **onProgress**: (`completed`, `total`, `url`) => `void`
 
-Defined in: [packages/proxy/src/core/prefetch.ts:29](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L29)
+Defined in: [packages/proxy/src/core/prefetch.ts:29](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L29)
 
 进度回调 (completed, total, url)
 
@@ -92,7 +92,7 @@ Defined in: [packages/proxy/src/core/prefetch.ts:29](https://github.com/isdk/pro
 
 > `optional` **signal**: `AbortSignal`
 
-Defined in: [packages/proxy/src/core/prefetch.ts:31](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L31)
+Defined in: [packages/proxy/src/core/prefetch.ts:31](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L31)
 
 取消信号
 
@@ -102,6 +102,6 @@ Defined in: [packages/proxy/src/core/prefetch.ts:31](https://github.com/isdk/pro
 
 > **urls**: [`PrefetchRequest`](PrefetchRequest.md)[]
 
-Defined in: [packages/proxy/src/core/prefetch.ts:19](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L19)
+Defined in: [packages/proxy/src/core/prefetch.ts:19](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L19)
 
 要预缓存的 URL 列表及其请求选项

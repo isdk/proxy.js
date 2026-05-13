@@ -8,7 +8,7 @@
 
 > **generateCacheKey**(`req`, `config`): `Promise`\<`string`\>
 
-Defined in: [packages/proxy/src/core/generateCacheKey.ts:10](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/generateCacheKey.ts#L10)
+Defined in: [packages/proxy/src/core/generateCacheKey.ts:10](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/generateCacheKey.ts#L10)
 
 根据 Request 对象和配置生成唯一的缓存指纹 (异步)
 

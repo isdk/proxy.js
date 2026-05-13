@@ -6,7 +6,7 @@
 
 # Interface: FetchWithCacheOptions
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:13](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L13)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:16](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L16)
 
 fetchWithCache 选项
 
@@ -20,7 +20,7 @@ fetchWithCache 选项
 
 > `optional` **activeCacheWrites**: `Map`\<`string`, `Promise`\<`void`\>\>
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:27](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L27)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:30](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L30)
 
 并发写入任务追踪器
 
@@ -30,7 +30,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:27](https://github.com/is
 
 > `optional` **backgroundUpdate**: `boolean`
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:19](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L19)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:22](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L22)
 
 是否启用后台异步更新 (SWR)
 
@@ -40,7 +40,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:19](https://github.com/is
 
 > **cache**: [`SmartCache`](../classes/SmartCache.md)
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:15](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L15)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:18](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L18)
 
 混合缓存实例
 
@@ -50,7 +50,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:15](https://github.com/is
 
 > **config**: [`ProxySiteConfig`](ProxySiteConfig.md)
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:17](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L17)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:20](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L20)
 
 站点级基础配置
 
@@ -60,7 +60,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:17](https://github.com/is
 
 > `optional` **generateKey**: (`req`, `config`) => `Promise`\<`string`\>
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:23](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L23)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:26](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L26)
 
 自定义缓存键生成函数
 
@@ -86,7 +86,7 @@ Defined in: [packages/proxy/src/core/fetchWithCache.ts:23](https://github.com/is
 
 > `optional` **onBackgroundUpdate**: (`promise`) => `void`
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:21](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/fetchWithCache.ts#L21)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:24](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/fetchWithCache.ts#L24)
 
 后台更新 Promise 触发时的回调
 

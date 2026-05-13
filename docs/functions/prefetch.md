@@ -8,7 +8,7 @@
 
 > **prefetch**(`options`): `Promise`\<[`PrefetchResult`](../interfaces/PrefetchResult.md)\>
 
-Defined in: [packages/proxy/src/core/prefetch.ts:55](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/core/prefetch.ts#L55)
+Defined in: [packages/proxy/src/core/prefetch.ts:55](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/prefetch.ts#L55)
 
 预缓存函数
 

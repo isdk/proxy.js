@@ -172,7 +172,7 @@ const myPostFetch = createCachedFetch({
 
 - **Node.js Server**: [@isdk/proxy-server](https://www.npmjs.com/package/@isdk/proxy-server).
 - **Crawlee Adapter**: [@isdk/proxy-crawlee](https://www.npmjs.com/package/@isdk/proxy-crawlee).
-- **MSW Adapter**: `@isdk/proxy-msw`.
+- **MSW Adapter**: [@isdk/proxy-msw](https://www.npmjs.com/package/@isdk/proxy-msw).
 
 ## API Reference
 

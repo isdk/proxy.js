@@ -8,7 +8,7 @@
 
 > **isMatch**(`pattern`, `value`, `usePrefix`, `defaultIfNoPositives`, `ignoreCase`): `boolean`
 
-Defined in: [packages/proxy/src/utils/matcher.ts:29](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/utils/matcher.ts#L29)
+Defined in: [packages/proxy/src/utils/matcher.ts:29](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/utils/matcher.ts#L29)
 
 Universal matching function with advanced logic.
 通用匹配函数。

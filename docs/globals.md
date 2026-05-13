@@ -38,6 +38,8 @@
 
 - [createCachedFetch](functions/createCachedFetch.md)
 - [createFetchWithCache](functions/createFetchWithCache.md)
+- [createResponse](functions/createResponse.md)
+- [decorateResponseWithUrl](functions/decorateResponseWithUrl.md)
 - [extractData](functions/extractData.md)
 - [fetchWithCache](functions/fetchWithCache.md)
 - [generateCacheKey](functions/generateCacheKey.md)

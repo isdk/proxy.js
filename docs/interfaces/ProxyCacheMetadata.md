@@ -6,7 +6,7 @@
 
 # Interface: ProxyCacheMetadata
 
-Defined in: [packages/proxy/src/types.ts:148](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L148)
+Defined in: [packages/proxy/src/types.ts:148](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L148)
 
 Cache Metadata.
 缓存元数据。
@@ -21,7 +21,7 @@ Cache Metadata.
 
 > **headers**: `Record`\<`string`, `string`\>
 
-Defined in: [packages/proxy/src/types.ts:152](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L152)
+Defined in: [packages/proxy/src/types.ts:152](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L152)
 
 Response headers object. 响应头对象。
 
@@ -31,7 +31,7 @@ Response headers object. 响应头对象。
 
 > **method**: `string`
 
-Defined in: [packages/proxy/src/types.ts:158](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L158)
+Defined in: [packages/proxy/src/types.ts:158](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L158)
 
 Original request method. 原始请求方法。
 
@@ -41,7 +41,7 @@ Original request method. 原始请求方法。
 
 > **policy**: `any`
 
-Defined in: [packages/proxy/src/types.ts:154](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L154)
+Defined in: [packages/proxy/src/types.ts:154](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L154)
 
 http-cache-semantics policy object. 策略对象，包含 TTL。
 
@@ -51,7 +51,7 @@ http-cache-semantics policy object. 策略对象，包含 TTL。
 
 > **size**: `number`
 
-Defined in: [packages/proxy/src/types.ts:162](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L162)
+Defined in: [packages/proxy/src/types.ts:162](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L162)
 
 Byte length of the body. Body 的字节长度。
 
@@ -61,7 +61,7 @@ Byte length of the body. Body 的字节长度。
 
 > **status**: `number`
 
-Defined in: [packages/proxy/src/types.ts:150](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L150)
+Defined in: [packages/proxy/src/types.ts:150](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L150)
 
 HTTP Status Code. HTTP 状态码。
 
@@ -71,7 +71,7 @@ HTTP Status Code. HTTP 状态码。
 
 > **timestamp**: `number`
 
-Defined in: [packages/proxy/src/types.ts:160](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L160)
+Defined in: [packages/proxy/src/types.ts:160](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L160)
 
 Timestamp when cache was written. 写入时间戳。
 
@@ -81,6 +81,6 @@ Timestamp when cache was written. 写入时间戳。
 
 > **url**: `string`
 
-Defined in: [packages/proxy/src/types.ts:156](https://github.com/isdk/proxy.js/blob/6f3366d94dc84bfa077995cd404aa1b780ba62a1/src/types.ts#L156)
+Defined in: [packages/proxy/src/types.ts:156](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L156)
 
 Original request URL. 原始请求 URL。
