@@ -85,3 +85,35 @@ Body 配置现在支持直接简写，不再强制使用嵌套对象。
 - [ ] 检查所有的 `query` 配置：如果希望继续保持全量匹配，可以移除旧的 `include: ['*']`；如果要排除特定项，改用 `['*', '!item']`。
 - [ ] 检查 `headers` 配置：如果依赖某些 Header 生成指纹，请确保它们在 `headers` 数组或对象中被定义。
 - [ ] 将所有的 `include/exclude` 逻辑转化为单一数组模式。
+
+---
+
+# 升级指南：从 V0.2 迁移至 V0.3
+
+## 1. Offline 模式行为变更
+
+`offline` 模式下缓存未命中时，不再抛出错误，而是返回状态码 `512` 的 Response。
+
+- **旧版**: 抛出 `OfflineCacheMissError` 异常
+- **新版**: 返回 `Response` with `status: 512`
+
+```typescript
+// 旧版
+try {
+  await fetchWithCache(request, fetcher, { config: { offline: true } });
+} catch (e) {
+  if (e instanceof OfflineCacheMissError) {
+    // 处理缓存未命中
+  }
+}
+
+// 新版
+const response = await fetchWithCache(request, fetcher, { config: { offline: true } });
+if (response.status === OfflineCacheMissErrorCode) {
+  // 处理缓存未命中
+}
+```
+
+## 2. 迁移 Checklist
+
+- [ ] 更新 Offline 模式错误处理逻辑：从 `try/catch` 改为检查 `response.status === OfflineCacheMissErrorCode`。

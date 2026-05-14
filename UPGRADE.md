@@ -85,3 +85,35 @@ The status code for `OfflineCacheMissError` is now standardized:
 - [ ] Review `query` configurations: To keep everything included, you can remove old `include: ['*']`. To exclude specific items, use `['*', '!item']`.
 - [ ] Review `headers` configurations: If your fingerprints depend on specific headers, ensure they are explicitly listed in the `headers` array or object.
 - [ ] Convert all `include/exclude` logic into the new single array pattern.
+
+---
+
+# Upgrade Guide: Migrating from V0.2 to V0.3
+
+## 1. Offline Mode Behavior Change
+
+When `offline: true` is enabled and the cache misses, it now returns a Response with status `512` instead of throwing an error.
+
+- **Old**: Throws `OfflineCacheMissError`
+- **New**: Returns `Response` with `status: 512`
+
+```typescript
+// Old
+try {
+  await fetchWithCache(request, fetcher, { config: { offline: true } });
+} catch (e) {
+  if (e instanceof OfflineCacheMissError) {
+    // Handle cache miss
+  }
+}
+
+// New
+const response = await fetchWithCache(request, fetcher, { config: { offline: true } });
+if (response.status === OfflineCacheMissErrorCode) {
+  // Handle cache miss
+}
+```
+
+## 2. Migration Checklist
+
+- [ ] Update Offline mode error handling: change from `try/catch` to checking `response.status === OfflineCacheMissErrorCode`.

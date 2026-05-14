@@ -97,7 +97,7 @@ const myPostFetch = createCachedFetch({
 | `body` | `BodyConfig` | Body matching & extraction. |
 | `staleIfError`| `boolean` | Return stale cache on backend errors. |
 | `forceCache` | `boolean` | Force caching regardless of origin directives. |
-| `offline` | `boolean` | Strict offline mode: Read-only cache. |
+| `offline` | `boolean` | Strict offline mode: Read-only cache, returns `512` on cache miss. |
 
 ### MatchPatterns Syntax
 
@@ -347,22 +347,17 @@ const result = await prefetch({
 console.log(`Succeeded: ${result.succeeded}, Failed: ${result.failed}`);
 ```
 
-### Error Handling: `OfflineCacheMissError`
+### Offline Cache Miss Response
 
-Thrown when `offline: true` is enabled and the request misses the cache.
+When `offline: true` is enabled and the request misses the cache, a Response with status `512` is returned instead of throwing an error.
 
-- **`name`**: `OfflineCacheMissError`
-- **`code`**: `512` (Custom status code)
+- **`status`**: `512` (Custom status code `OfflineCacheMissErrorCode`)
+- **`statusText`**: `Offline mode: No cached response`
 
 ```typescript
-import { OfflineCacheMissError } from '@isdk/proxy';
-
-try {
-  await myFetch(request);
-} catch (e) {
-  if (e instanceof OfflineCacheMissError) {
-    // Handle cache miss
-  }
+const response = await myFetch(request);
+if (response.status === OfflineCacheMissErrorCode) {
+  // Handle cache miss
 }
 ```
 

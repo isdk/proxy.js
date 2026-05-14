@@ -97,7 +97,7 @@ const myPostFetch = createCachedFetch({
 | `body` | `BodyConfig` | 请求体匹配与提取。支持 JSON 字段过滤、Text 正则提取和 Binary 全量哈希。 |
 | `staleIfError`| `boolean` | 网络请求失败时，是否强制返回本地过期的旧缓存。 |
 | `forceCache` | `boolean` | 是否无视源站指令强制执行缓存。 |
-| `offline` | `boolean` | 离线模式。开启后只读缓存，若无缓存则抛出 `OfflineCacheMissError`。 |
+| `offline` | `boolean` | 离线模式。开启后只读缓存，若无缓存则返回状态码 `512` 的 Response (`OfflineCacheMissErrorCode`)。 |
 
 ### `ProxyCacheRule` 规则对象
 
@@ -355,22 +355,17 @@ const result = await prefetch({
 console.log(`Succeeded: ${result.succeeded}, Failed: ${result.failed}`);
 ```
 
-### 错误处理：`OfflineCacheMissError`
+### Offline 缓存未命中响应
 
-在开启 `offline: true` 模式时，如果请求未命中缓存，将抛出此错误。
+在开启 `offline: true` 模式时，如果请求未命中缓存，将返回状态码 `512` 的 Response，而非抛出错误。
 
-- **`name`**: `OfflineCacheMissError`
-- **`code`**: `512` (自定义状态码)
+- **`status`**: `512` (自定义状态码 `OfflineCacheMissErrorCode`)
+- **`statusText`**: `Offline mode: No cached response`
 
 ```typescript
-import { OfflineCacheMissError } from '@isdk/proxy';
-
-try {
-  await myFetch(request);
-} catch (e) {
-  if (e instanceof OfflineCacheMissError) {
-    // 处理缓存未命中
-  }
+const response = await myFetch(request);
+if (response.status === OfflineCacheMissErrorCode) {
+  // 处理缓存未命中
 }
 ```
 

@@ -66,18 +66,20 @@ describe('Offline Mode', () => {
       expect(res.headers.get('x-proxy-cache')).toBe('OFFLINE_HIT');
     });
 
-    it('应该抛出 OfflineCacheMissError 当缓存不存在时', async () => {
+    it('应该返回 Response with OfflineCacheMissErrorCode 当缓存不存在时', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-miss');
       const offlineConfig: ProxySiteConfig = { offline: true };
 
       const request = new Request('https://api.example.com/no-such-data');
 
-      // offline 模式下缓存未命中应抛出错误
-      await expect(
-        fetchWithCache(request, async () => {
-          throw new Error('Should not be called in offline mode');
-        }, { cache, config: offlineConfig, activeCacheWrites })
-      ).rejects.toThrow('Offline mode: No cached response for https://api.example.com/no-such-data');
+      // offline 模式下缓存未命中应返回 Response 而不是抛出错误
+      const res = await fetchWithCache(request, async () => {
+        throw new Error('Should not be called in offline mode');
+      }, { cache, config: offlineConfig, activeCacheWrites });
+
+      expect(res.status).toBe(OfflineCacheMissErrorCode);
+      expect(await res.text()).toBe('Offline mode: No cached response');
+      expect(res.headers.get('x-proxy-cache')).toBe('OFFLINE_HIT');
     });
 
     it('offline 模式下不应调用 fetcher', async () => {
@@ -154,21 +156,22 @@ describe('Offline Mode', () => {
       expect(res.headers.get('x-proxy-cache')).toBe('OFFLINE_HIT');
     });
 
-    it('offline 模式下不应触发 staleIfError', async () => {
+    it('offline 模式下不应触发 staleIfError，而是返回 Response', async () => {
       const { cache, activeCacheWrites } = await createTestCache('offline-staleiferror');
       const offlineConfig: ProxySiteConfig = { offline: true, staleIfError: true };
 
       // 没有任何缓存
       const request = new Request('https://api.example.com/no-cache');
 
-      // offline 模式下应该直接抛出错误，不检查 staleIfError
-      await expect(
-        fetchWithCache(request, vi.fn().mockRejectedValue(new Error('Network Error')), {
-          cache,
-          config: offlineConfig,
-          activeCacheWrites
-        })
-      ).rejects.toThrow('Offline mode: No cached response');
+      // offline 模式下应返回 Response 而不是抛出错误
+      const res = await fetchWithCache(request, vi.fn().mockRejectedValue(new Error('Network Error')), {
+        cache,
+        config: offlineConfig,
+        activeCacheWrites
+      });
+
+      expect(res.status).toBe(OfflineCacheMissErrorCode);
+      expect(await res.text()).toBe('Offline mode: No cached response');
     });
 
     it('offline 模式下不应触发 SWR 后台更新', async () => {
@@ -234,17 +237,16 @@ describe('Offline Mode', () => {
       });
 
       // 在非 offline 模式下，这个请求会因为 method 不匹配而穿透 (isCacheable 返回 false)
-      // 但在 offline 模式下，它应该在 isCacheable 之前就被拦截并抛出错误（因为没有缓存）
+      // 但在 offline 模式下，它应该在 isCacheable 之前就被拦截并返回 Response（因为没有缓存）
       const mockFetcher = vi.fn();
 
-      await expect(
-        fetchWithCache(request, mockFetcher, {
-          cache,
-          config: offlineConfig,
-          activeCacheWrites
-        })
-      ).rejects.toThrow('Offline mode: No cached response');
+      const res = await fetchWithCache(request, mockFetcher, {
+        cache,
+        config: offlineConfig,
+        activeCacheWrites
+      });
 
+      expect(res.status).toBe(OfflineCacheMissErrorCode);
       expect(mockFetcher).not.toHaveBeenCalled();
     });
   });

@@ -6,7 +6,7 @@ import { debug as debugFactory } from 'debug';
 import type { SmartCache } from './SmartCache';
 import { generateCacheKey } from './generateCacheKey';
 import { ProxySiteConfig, ProxyCacheMetadata, ProxyCacheEntry, ProxyCacheRule } from '../types';
-import { OfflineCacheMissError } from '../errors';
+import { OfflineCacheMissErrorCode, OfflineCacheMissErrorMsg } from '../errors';
 import { getEffectiveConfigFromRequest, isCacheable } from './isCacheable';
 import { createResponse } from '../utils';
 
@@ -245,7 +245,12 @@ export async function fetchWithCache(
   // 3. 处理离线模式：使用最终合并后的 effectiveConfig
   if (effectiveConfig.offline) {
     if (cachedEntry) return buildResponseFromCache(cachedEntry, 'OFFLINE_HIT');
-    throw new OfflineCacheMissError(request.url);
+    return createResponse(OfflineCacheMissErrorMsg, {
+    status: OfflineCacheMissErrorCode,
+    headers: { 'x-proxy-cache': 'OFFLINE_HIT' },
+    url: request.url
+  });
+    // throw new OfflineCacheMissError(request.url);
   }
 
   // 4. 判断当前请求是否允许进入缓存流程
