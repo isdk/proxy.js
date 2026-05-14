@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.0](https://github.com/isdk/proxy.js/compare/v0.2.1...v0.3.0) (2026-05-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* offline 模式下缓存未命中改为返回 Response 而非抛出错误
+
+### Features
+
+* add createResponse utility and preserve URL in fetchWithCache ([ba32cf1](https://github.com/isdk/proxy.js/commit/ba32cf1eff378adced30d57bdc0d0358b428a5c4))
+* **error:** add OfflineCacheMissErrorMsg ([e697713](https://github.com/isdk/proxy.js/commit/e6977133f5d9246dbd8e7caa55e5466f1d7e66b1))
+* **fetchWithCache:** 添加 debug 调试日志 ([2fdabd4](https://github.com/isdk/proxy.js/commit/2fdabd45bf6ba59f8ff55647376cc5eea3de7160))
+* offline 模式下缓存未命中改为返回 Response 而非抛出错误 ([ca0753e](https://github.com/isdk/proxy.js/commit/ca0753e2e2dcac65190c537ce1634a27f5ee2158))
+
 ## [0.2.1](https://github.com/isdk/proxy.js/compare/v0.2.0...v0.2.1) (2026-05-12)
 
 
