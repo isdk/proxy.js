@@ -12,6 +12,7 @@ import { CommonError, ErrorCode } from '@isdk/common-error';
  * - offline 模式下缓存不存在（本错误）
  */
 export const OfflineCacheMissErrorCode = ErrorCode.OfflineCacheMiss;
+export const OfflineCacheMissErrorMsg = 'Offline mode: No cached response'
 
 /**
  * Offline 缓存未命中错误
@@ -24,7 +25,7 @@ export const OfflineCacheMissErrorCode = ErrorCode.OfflineCacheMiss;
 export class OfflineCacheMissError extends CommonError {
   static code = OfflineCacheMissErrorCode;
   constructor(url: string|number, name?: string|Record<string, any>) {
-    super(`Offline mode: No cached response for ${url}`, name, OfflineCacheMissErrorCode)
+    super(`${OfflineCacheMissErrorMsg} for ${url}`, name, OfflineCacheMissErrorCode)
     this.data = { url }
   }
 }
