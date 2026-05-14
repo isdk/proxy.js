@@ -33,6 +33,7 @@
 ## Variables
 
 - [OfflineCacheMissErrorCode](variables/OfflineCacheMissErrorCode.md)
+- [OfflineCacheMissErrorMsg](variables/OfflineCacheMissErrorMsg.md)
 
 ## Functions
 

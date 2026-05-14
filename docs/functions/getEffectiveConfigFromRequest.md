@@ -8,7 +8,7 @@
 
 > **getEffectiveConfigFromRequest**(`request`, `config`): `Promise`\<[`ProxyCacheRule`](../interfaces/ProxyCacheRule.md)\>
 
-Defined in: [packages/proxy/src/core/isCacheable.ts:75](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/isCacheable.ts#L75)
+Defined in: [packages/proxy/src/core/isCacheable.ts:75](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/core/isCacheable.ts#L75)
 
 获取叠加后的最终生效配置 (Rule -> Site -> Global)
 

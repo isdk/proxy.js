@@ -8,7 +8,7 @@
 
 > `const` **OfflineCacheMissErrorCode**: `OfflineCacheMiss` = `ErrorCode.OfflineCacheMiss`
 
-Defined in: [packages/proxy/src/errors.ts:14](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/errors.ts#L14)
+Defined in: [packages/proxy/src/errors.ts:14](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/errors.ts#L14)
 
 Offline 缓存未命中错误代码
 

@@ -8,7 +8,7 @@
 
 > **extractData**(`source`, `config?`, `defaultAllowed?`): `Record`\<`string`, `string`[]\>
 
-Defined in: [packages/proxy/src/utils/extractData.ts:23](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/utils/extractData.ts#L23)
+Defined in: [packages/proxy/src/utils/extractData.ts:23](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/utils/extractData.ts#L23)
 
 Universal Data Extraction and Filtering Utility (for Objects)
 通用数据提取与过滤函数 (针对对象)

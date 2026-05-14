@@ -6,7 +6,7 @@
 
 # Interface: ProxySiteConfig
 
-Defined in: [packages/proxy/src/types.ts:119](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L119)
+Defined in: [packages/proxy/src/types.ts:119](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L119)
 
 Site-level Cache Configuration.
 站点级缓存配置。
@@ -21,7 +21,7 @@ Site-level Cache Configuration.
 
 > `optional` **body**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md) \| [`ProxyFieldConfig`](../type-aliases/ProxyFieldConfig.md) \| [`ProxyBodyConfig`](ProxyBodyConfig.md)
 
-Defined in: [packages/proxy/src/types.ts:96](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L96)
+Defined in: [packages/proxy/src/types.ts:96](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L96)
 
 Body matching and extraction configuration.
 请求体匹配与提取配置。
@@ -36,7 +36,7 @@ Body matching and extraction configuration.
 
 > `optional` **cookies**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md) \| [`ProxyFieldConfig`](../type-aliases/ProxyFieldConfig.md)
 
-Defined in: [packages/proxy/src/types.ts:91](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L91)
+Defined in: [packages/proxy/src/types.ts:91](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L91)
 
 Cookie matching and fingerprinting configuration.
 Cookie 匹配与指纹提取配置。
@@ -51,7 +51,7 @@ Cookie 匹配与指纹提取配置。
 
 > `optional` **forceCache**: `boolean`
 
-Defined in: [packages/proxy/src/types.ts:107](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L107)
+Defined in: [packages/proxy/src/types.ts:107](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L107)
 
 Force cache: Ignore `Cache-Control: no-store` etc. and force store in cache.
 强制缓存：忽略 Cache-Control 指令强制入库。
@@ -66,7 +66,7 @@ Force cache: Ignore `Cache-Control: no-store` etc. and force store in cache.
 
 > `optional` **headers**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md) \| [`ProxyFieldConfig`](../type-aliases/ProxyFieldConfig.md)
 
-Defined in: [packages/proxy/src/types.ts:86](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L86)
+Defined in: [packages/proxy/src/types.ts:86](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L86)
 
 Headers matching and fingerprinting configuration.
 请求头匹配与指纹提取配置。
@@ -81,7 +81,7 @@ Headers matching and fingerprinting configuration.
 
 > `optional` **methods**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md)
 
-Defined in: [packages/proxy/src/types.ts:76](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L76)
+Defined in: [packages/proxy/src/types.ts:76](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L76)
 
 Allowed HTTP methods (e.g., "GET", ["GET", "POST"]).
 允许的方法。
@@ -96,7 +96,7 @@ Allowed HTTP methods (e.g., "GET", ["GET", "POST"]).
 
 > `optional` **offline**: `boolean`
 
-Defined in: [packages/proxy/src/types.ts:112](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L112)
+Defined in: [packages/proxy/src/types.ts:112](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L112)
 
 Strict offline mode: No network requests, read only from cache. Fails if cache miss.
 严格离线模式：只读缓存，不发起网络请求。
@@ -111,7 +111,7 @@ Strict offline mode: No network requests, read only from cache. Fails if cache m
 
 > `optional` **path**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md)
 
-Defined in: [packages/proxy/src/types.ts:71](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L71)
+Defined in: [packages/proxy/src/types.ts:71](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L71)
 
 Path gatekeeping.
 路径门控。
@@ -128,7 +128,7 @@ Path gatekeeping.
 
 > `optional` **query**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md) \| [`ProxyFieldConfig`](../type-aliases/ProxyFieldConfig.md)
 
-Defined in: [packages/proxy/src/types.ts:81](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L81)
+Defined in: [packages/proxy/src/types.ts:81](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L81)
 
 Query parameter matching and fingerprinting configuration.
 Query 参数匹配与指纹提取配置。
@@ -143,7 +143,7 @@ Query 参数匹配与指纹提取配置。
 
 > `optional` **rules**: [`ProxyCacheRule`](ProxyCacheRule.md)[]
 
-Defined in: [packages/proxy/src/types.ts:126](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L126)
+Defined in: [packages/proxy/src/types.ts:126](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L126)
 
 List of granular path-based rules.
 If provided, request must match at least one rule to be cacheable.
@@ -156,7 +156,7 @@ Matched rule will be deeply merged with site-level config.
 
 > `optional` **staleIfError**: `boolean`
 
-Defined in: [packages/proxy/src/types.ts:102](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/types.ts#L102)
+Defined in: [packages/proxy/src/types.ts:102](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L102)
 
 Fault tolerance: If backend fails (network error or 5xx), return stale cache if available.
 容错机制：当后端请求失败且存在旧缓存时，强制返回旧缓存。

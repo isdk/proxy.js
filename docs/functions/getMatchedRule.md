@@ -8,7 +8,7 @@
 
 > **getMatchedRule**(`request`, `config`, `bodyState?`): `Promise`\<[`ProxyCacheRule`](../interfaces/ProxyCacheRule.md) \| `null`\>
 
-Defined in: [packages/proxy/src/core/isCacheable.ts:49](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/core/isCacheable.ts#L49)
+Defined in: [packages/proxy/src/core/isCacheable.ts:49](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/core/isCacheable.ts#L49)
 
 获取请求匹配到的规则
 

@@ -8,7 +8,7 @@
 
 > **isAllowed**(`key`, `patterns?`, `defaultAllowed?`): `boolean`
 
-Defined in: [packages/proxy/src/utils/isAllowed.ts:25](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/utils/isAllowed.ts#L25)
+Defined in: [packages/proxy/src/utils/isAllowed.ts:25](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/utils/isAllowed.ts#L25)
 
 判断给定的键是否允许参与缓存指纹计算。
 

@@ -6,7 +6,7 @@
 
 # Class: OfflineCacheMissError
 
-Defined in: [packages/proxy/src/errors.ts:24](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/errors.ts#L24)
+Defined in: [packages/proxy/src/errors.ts:25](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/errors.ts#L25)
 
 Offline 缓存未命中错误
 
@@ -26,7 +26,7 @@ throw new OfflineCacheMissError('http://example.com/data')
 
 > **new OfflineCacheMissError**(`url`, `name?`): `OfflineCacheMissError`
 
-Defined in: [packages/proxy/src/errors.ts:26](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/errors.ts#L26)
+Defined in: [packages/proxy/src/errors.ts:27](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/errors.ts#L27)
 
 #### Parameters
 
@@ -138,7 +138,7 @@ Defined in: node\_modules/.pnpm/typescript@5.7.3/node\_modules/typescript/lib/li
 
 > `static` **code**: `ErrorCode` = `OfflineCacheMissErrorCode`
 
-Defined in: [packages/proxy/src/errors.ts:25](https://github.com/isdk/proxy.js/blob/2fdabd45bf6ba59f8ff55647376cc5eea3de7160/src/errors.ts#L25)
+Defined in: [packages/proxy/src/errors.ts:26](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/errors.ts#L26)
 
 The error code associated with the error.
 
