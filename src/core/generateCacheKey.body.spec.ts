@@ -50,6 +50,71 @@ describe('generateCacheKey Body Extraction', () => {
     expect(key1).toBe(key2);
   });
 
+  it('指纹提取优先级: extract 应优于 match', async () => {
+    const siteConfig: ProxySiteConfig = {
+      body: {
+        type: 'json',
+        match: ['token'],  // 门控要求有 token
+        extract: ['id']    // 指纹只提取 id
+      }
+    };
+
+    const req = new Request('https://api.com/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 1, token: 'secret', other: 'omit' })
+    });
+
+    const key1 = await generateCacheKey(req, siteConfig);
+
+    // 改变 token (match 字段)，指纹不应变
+    const req2 = new Request('https://api.com/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 1, token: 'different', other: 'omit' })
+    });
+    const key2 = await generateCacheKey(req2, siteConfig);
+    expect(key1).toBe(key2);
+
+    // 改变 id (extract 字段)，指纹必须变
+    const req3 = new Request('https://api.com/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 2, token: 'secret', other: 'omit' })
+    });
+    const key3 = await generateCacheKey(req3, siteConfig);
+    expect(key1).not.toBe(key3);
+  });
+
+  it('JSON Body: extract 应支持对象模式过滤', async () => {
+    const siteConfig: ProxySiteConfig = {
+      body: {
+        type: 'json',
+        extract: {
+          id: true,
+          category: 'A*' // 只提取以 A 开头的 category
+        }
+      }
+    };
+
+    const req = new Request('https://api.com/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 1, category: 'Apple', other: 'omit' })
+    });
+    const key1 = await generateCacheKey(req, siteConfig);
+
+    const req2 = new Request('https://api.com/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 1, category: 'Banana', other: 'omit' })
+    });
+    const key2 = await generateCacheKey(req2, siteConfig);
+
+    // Banana 不符合 A*，所以被排除，生成的指纹只剩 {id: 1}，应与原始不同
+    expect(key1).not.toBe(key2);
+  });
+
   it('对于 Binary Body 应该返回全量 Hash', async () => {
     const req1 = new Request('https://api.com/', { 
       method: 'POST', 

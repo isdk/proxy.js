@@ -72,13 +72,13 @@ export async function isResponseCacheable(
     if (!rConfig) continue;
 
     // B. 响应头校验
-    if (rConfig.headers && !matchField(headers, rConfig.headers, true)) {
+    if (rConfig.headers && !matchField(headers, rConfig.headers, { defaultAllowed: true })) {
       // 如果是预设规则（如 WAF 预设）导致响应头校验失败，应触发容灾保护
       const isWafPreset = WAF_PRESETS.includes(r);
-      return { 
-        cacheable: false, 
-        reason: isWafPreset ? 'waf_challenge' : 'headers_mismatch', 
-        keepOldCache: isWafPreset 
+      return {
+        cacheable: false,
+        reason: isWafPreset ? 'waf_challenge' : 'headers_mismatch',
+        keepOldCache: isWafPreset
       };
     }
 
@@ -93,34 +93,41 @@ export async function isResponseCacheable(
     }
   }
 
-  // D. Body 内容校验 (仅针对有 body 的文本/JSON 响应)
+  // D. Body 校验
   const contentType = headers.get('content-type') || '';
   const isTextual = contentType.includes('text/') || contentType.includes('application/json') || contentType.includes('application/xml');
   const bodyRules = rulesToCheck.filter(r => r.response?.body);
-  const needsBodyCheck = bodyRules.length;
+  const needsBodyCheck = bodyRules.length > 0;
 
-  if (needsBodyCheck && isTextual && response.body) {
+  if (isTextual && response.body) {
     let text = options.bodyText;
-    if (text === undefined) {
+    // 如果需要 body 内容匹配，则读取 Body
+    if (text === undefined && needsBodyCheck) {
       try {
-        // 注意：这里 clone 响应以避免消费原始响应流
         text = await response.clone().text();
       } catch (e) {
         return { cacheable: false, reason: 'body_read_error' };
       }
     }
 
-    for (const r of bodyRules) {
-      const rConfig = r.response!;
-      if (!isMatch(rConfig.body!, text)) {
-        // 由于 isMatch 支持 ! 否定匹配，如果返回 false 说明：
-        // 1. 没匹配上必须包含的正向模式
-        // 2. 匹配上了必须排除的否定模式 (如 WAF 关键词)
+    const actualLength = text !== undefined ? Buffer.byteLength(text) : undefined;
+
+    for (const r of rulesToCheck) {
+      const rConfig = r.response;
+      if (!rConfig) continue;
+
+      // C2. 长度二次校验 (仅在已有 text 的情况下进行更精准的校验)
+      if (rConfig.minLength !== undefined && actualLength !== undefined && actualLength < rConfig.minLength) {
+        return { cacheable: false, reason: 'too_short', keepOldCache: true };
+      }
+
+      // D2. 内容关键字校验
+      if (rConfig.body && text !== undefined && !isMatch(rConfig.body, text)) {
         const isWafPreset = WAF_PRESETS.includes(r);
-        return { 
-          cacheable: false, 
-          reason: isWafPreset ? 'waf_challenge' : 'body_match_failed', 
-          keepOldCache: true 
+        return {
+          cacheable: false,
+          reason: isWafPreset ? 'waf_challenge' : 'body_match_failed',
+          keepOldCache: true
         };
       }
     }

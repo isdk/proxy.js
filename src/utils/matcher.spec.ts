@@ -96,15 +96,15 @@ describe('isMatch', () => {
     });
 
     it('usePrefix=true 时启用前缀匹配', () => {
-      expect(isMatch('hello', 'hello world', true)).toBe(true);
-      expect(isMatch('hello', 'world', true)).toBe(false);
+      expect(isMatch('hello', 'hello world', { usePrefix: true })).toBe(true);
+      expect(isMatch('hello', 'world', { usePrefix: true })).toBe(false);
     });
   });
 
   describe('边界情况', () => {
     it('应该处理空字符串', () => {
       expect(isMatch('', '')).toBe(true);
-      expect(isMatch('', 'something', true)).toBe(true);
+      expect(isMatch('', 'something', { usePrefix: true })).toBe(true);
     });
 
     it('应该返回非布尔值的 false', () => {

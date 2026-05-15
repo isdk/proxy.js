@@ -28,14 +28,22 @@ export function isGlob(str: string): boolean {
  * @param ignoreCase Whether to perform case-insensitive matching (default: true)
  */
 export function isMatch(
-  pattern: string | RegExp | (string | RegExp)[],
+  pattern: number | string | RegExp | (number | string | RegExp)[],
   value: string,
-  usePrefix = false,
-  defaultIfNoPositives = true,
-  ignoreCase = true
+  {
+    usePrefix = false,
+    defaultIfNoPositives = true,
+    ignoreCase = true,
+    ignoreNegative,
+  }: {
+    usePrefix?: boolean;
+    defaultIfNoPositives?: boolean;
+    ignoreCase?: boolean;
+    ignoreNegative?: boolean,
+  } = {}
 ): boolean {
   if (Array.isArray(pattern) && pattern.length) {
-    const positives: (string | RegExp)[] = [];
+    const positives: (number | string | RegExp)[] = [];
     const negatives: string[] = [];
 
     pattern.forEach(p => {
@@ -47,7 +55,10 @@ export function isMatch(
     });
 
     // Negation check (Priority: Exclusion)
-    if (negatives.length > 0 && negatives.some(n => isMatch(n, value, usePrefix, true, ignoreCase))) {
+    if (!ignoreNegative &&
+      negatives.length > 0 &&
+      negatives.some(n => isMatch(n, value, { usePrefix, defaultIfNoPositives: true, ignoreCase }))
+    ) {
       return false;
     }
 
@@ -55,38 +66,38 @@ export function isMatch(
     if (positives.length === 0) return defaultIfNoPositives;
 
     // Match any positive patterns
-    return positives.some(p => isMatch(p, value, usePrefix, defaultIfNoPositives, ignoreCase));
+    return positives.some(p => isMatch(p, value, { usePrefix, defaultIfNoPositives, ignoreCase }));
   }
 
   if (pattern instanceof RegExp) {
     return pattern.test(value);
   }
 
-  if (typeof pattern === 'string') {
-    const targetValue = ignoreCase ? value.toLowerCase() : value;
-    const targetPattern = ignoreCase ? pattern.toLowerCase() : pattern;
+  const patternStr = (pattern === null || pattern === undefined) ? '' : String(pattern);
+  const targetValue = ignoreCase ? value.toLowerCase() : value;
+  const targetPattern = ignoreCase ? patternStr.toLowerCase() : patternStr;
 
-    if (isRegExpStr(pattern)) {
-      return toRegExp(pattern).test(value);
-    }
-
-    if (isGlob(targetPattern)) {
-      return pm(targetPattern, { dot: true, bash: true })(targetValue);
-    }
-
-    return usePrefix ? targetValue.startsWith(targetPattern) : targetValue === targetPattern;
+  if (isRegExpStr(patternStr)) {
+    return toRegExp(patternStr).test(value);
   }
 
-  return false;
+  if (isGlob(targetPattern)) {
+    return pm(targetPattern, { dot: true, bash: true })(targetValue);
+  }
+
+  return usePrefix ? targetValue.startsWith(targetPattern) : targetValue === targetPattern;
 }
 
-/**
- * 通用字段匹配 (用于 Query, Headers, Cookies, Body)
- */
 export function matchField(
   source: URLSearchParams | Headers | Record<string, any>,
   config: ProxyFieldConfig | ProxyMatchPatterns,
-  defaultAllowed: boolean = true
+  {
+    defaultAllowed = true,
+    ignoreNegative,
+  }: {
+    defaultAllowed?: boolean,
+    ignoreNegative?: boolean,
+  } = {}
 ): boolean {
   if (config && typeof config === 'object' && !Array.isArray(config) && !(config instanceof RegExp)) {
     // Record 模式: 执行 AND 匹配
@@ -106,7 +117,7 @@ export function matchField(
         if (pattern && !has) return false;
         if (!pattern && has) return false;
       } else {
-        if (val === null || !isMatch(pattern, val)) return false;
+        if (val === null || !isMatch(pattern, val, { ignoreNegative })) return false;
       }
     }
     return true;
@@ -118,6 +129,6 @@ export function matchField(
 
     if (keys.length === 0) return defaultAllowed;
 
-    return (keys as string[]).some(key => isMatch(config as ProxyMatchPatterns, key));
+    return (keys as string[]).some(key => isMatch(config as ProxyMatchPatterns, key, { ignoreNegative }));
   }
 }

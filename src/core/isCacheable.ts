@@ -49,13 +49,13 @@ async function matchRule(
   if (rule.methods && !isMatch(rule.methods, method)) return false;
 
   // 2. 路径门控
-  if (rule.path && !isMatch(rule.path, url.pathname, true)) return false;
+  if (rule.path && !isMatch(rule.path, url.pathname, { usePrefix: true })) return false;
 
   // 3. Query 门控
-  if (rule.query && !matchField(url.searchParams, rule.query, true)) return false;
+  if (rule.query && !matchField(url.searchParams, rule.query, { defaultAllowed: true })) return false;
 
   // 4. Headers 门控
-  if (rule.headers && !matchField(request.headers, rule.headers, false)) return false;
+  if (rule.headers && !matchField(request.headers, rule.headers, { defaultAllowed: false })) return false;
 
   // 5. Cookies 门控
   if (rule.cookies) {
@@ -69,7 +69,7 @@ async function matchRule(
           return [parts[0], parts.slice(1).join('=')];
         })
     );
-    if (!matchField(cookieMap, rule.cookies, false)) return false;
+    if (!matchField(cookieMap, rule.cookies, { defaultAllowed: false })) return false;
   }
 
   // 6. Body 门控
@@ -94,18 +94,25 @@ async function matchRule(
           } catch { (bodyState as any).json = {}; }
           bodyState.checked = true;
         }
-        if (!matchField((bodyState as any).json, bodyConfig.match, true)) return false;
+        if (!matchField((bodyState as any).json, bodyConfig.match, { defaultAllowed: true })) return false;
       }
 
-      // 正则/文本匹配 (针对 Text)
-      if (bodyConfig.extract && actualType === 'text') {
-        if (!bodyState.checked) {
-          try {
-            bodyState.text = (await request.clone().text()).slice(0, ruleLimit);
-          } catch { bodyState.text = ''; }
-          bodyState.checked = true;
+      // 内容匹配 (针对 Text)
+      if (bodyConfig.match && actualType === 'text') {
+        const m = bodyConfig.match;
+        // 文本模式下，只有 MatchPatterns (串/阵/正) 有效，Record 模式无效
+        if (typeof m === 'string' || Array.isArray(m) || m instanceof RegExp) {
+          if (!bodyState.checked) {
+            try {
+              bodyState.text = (await request.clone().text()).slice(0, ruleLimit);
+            } catch { bodyState.text = ''; }
+            bodyState.checked = true;
+          }
+          if (!bodyState.text || !isMatch(m as ProxyMatchPatterns, bodyState.text)) return false;
+        } else {
+          // 如果给文本配置了对象模式规则，视为不匹配
+          return false;
         }
-        if (!bodyState.text || !isMatch(bodyConfig.extract, bodyState.text)) return false;
       }
     } else {
       // 简写模式: 直接匹配 Body 文本
@@ -124,21 +131,37 @@ async function matchRule(
 }
 
 /**
- * 请求分析结果 (当 isCacheable 返回非 false 时)
+ * Analysis of request cacheability (returned when cacheable).
+ * 请求可缓存性分析结果（通过门控时返回）。
  */
 export interface CacheAnalysis {
-  /** 匹配到的细化规则 */
+  /** 
+   * The specific rule that matched the request. 
+   * 匹配到的细化规则。
+   */
   matchedRule: ProxyCacheRule | null;
-  /** 请求体读取状态（可供后续生成 Key 等环节复用） */
+  /** 
+   * Current body reading state (reusable for fingerprinting). 
+   * 请求体读取状态（可供后续生成 Key 等环节复用，避免重复读取 Stream）。
+   */
   bodyState: { text: string | null; checked: boolean; limit: number };
 }
 
 /**
- * 判断当前请求是否满足可缓存的基础条件并返回分析结果
+ * Validates if the request meets the base cacheability criteria and returns analysis metadata.
+ * 判断当前请求是否满足可缓存的基础条件（门控校验）并返回分析上下文。
  *
- * @param request 请求对象
- * @param config 站点级配置
- * @returns 如果不可缓存则返回 false，否则返回 CacheAnalysis 对象
+ * @param request Request object. 请求对象。
+ * @param config Site-level configuration. 站点级配置。
+ * @returns 
+ * - `CacheAnalysis`: If cacheable. Returns metadata for downstream steps (fingerprinting/fetching).
+ *   如果可缓存，返回包含规则和 Body 状态的对象，供后续步骤复用。
+ * - `undefined`: If NOT cacheable. Blocked by site-level or rule-level gatekeeping.
+ *   如果不可缓存（被门控拦截），返回 undefined。
+ * 
+ * @important DO NOT simplify to boolean. The returned `bodyState` is CRITICAL for preventing 
+ * multiple stream reads in subsequent `generateCacheKey` and `fetch` calls.
+ * 请勿简化为 boolean。返回的 `bodyState` 对于防止后续流程中重复读取请求流至关重要。
  */
 export async function isCacheable(
   request: Request,

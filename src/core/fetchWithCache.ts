@@ -2,6 +2,7 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import CachePolicy from 'http-cache-semantics';
 import { debug as debugFactory } from 'debug';
+import { defaultsDeep } from 'lodash-es';
 
 import type { SmartCache } from './SmartCache';
 import { generateCacheKey } from './generateCacheKey';
@@ -246,13 +247,22 @@ export async function fetchWithCache(
   fetcher: (req: Request) => Promise<Response>,
   options: FetchWithCacheOptions
 ): Promise<Response> {
+  // 1. 运行时从 Request 提取最高优先级配置
+  const requestOverrides = (request as any).isdkProxy || {};
+  options = defaultsDeep({}, requestOverrides, options);
+
   const { config, cache } = options;
 
-  // 1. 请求分析 (门控、规则匹配、配置合并)
+  // 2. 请求分析 (门控、规则匹配、配置合并)
   const cacheabled = await isCacheable(request, config);
-  const effectiveConfig = getEffectiveConfig(cacheabled?.matchedRule || {}, config);
+  let effectiveConfig = getEffectiveConfig(cacheabled?.matchedRule || {}, config);
 
-  // 2. 检查可缓存性
+  // 如果 Request 对象携带了覆盖配置，使用 defaultsDeep 合并到当前有效配置中
+  if (requestOverrides.config) {
+    effectiveConfig = defaultsDeep({}, requestOverrides.config, effectiveConfig);
+  }
+
+  // 3. 检查可缓存性
   if (!cacheabled) {
     if (effectiveConfig.offline) {
       return createResponse(OfflineCacheMissErrorMsg, {
@@ -275,7 +285,7 @@ export async function fetchWithCache(
 
   const { bodyState } = cacheabled;
 
-  // 3. 生成缓存键 (利用已有的 bodyState 和 effectiveConfig 避免重复读取/合并)
+  // 4. 生成缓存键 (利用已有的 bodyState 和 effectiveConfig 避免重复读取/合并)
   const genKey = options.generateKey || generateCacheKey;
   const cacheKey = await genKey(request, config, bodyState, effectiveConfig);
 
@@ -288,10 +298,10 @@ export async function fetchWithCache(
     activeCacheWrites: options.activeCacheWrites || new Map<string, Promise<void>>()
   };
 
-  // 4. 尝试读取缓存
+  // 5. 尝试读取缓存
   const cachedEntry = await cache.get(cacheKey);
 
-  // 5. 处理离线模式
+  // 6. 处理离线模式
   if (effectiveConfig.offline) {
     if (cachedEntry) return buildResponseFromCache(cachedEntry, 'OFFLINE_HIT');
     return createResponse(OfflineCacheMissErrorMsg, {
@@ -301,7 +311,7 @@ export async function fetchWithCache(
     });
   }
 
-  // 6. 判定命中状态 (如果开启 refresh 则跳过命中判定，强制回源)
+  // 7. 判定命中状态 (如果开启 refresh 则跳过命中判定，强制回源)
   if (cachedEntry && !options.refresh) {
     const status = evaluateCachePolicy(ctx, cachedEntry);
     debug('evaluateCachePolicy:', request.url, status)
@@ -316,7 +326,7 @@ export async function fetchWithCache(
     }
   }
 
-  // 7. 防击穿处理
+  // 8. 防击穿处理
   if (ctx.activeCacheWrites.has(cacheKey)) {
     const waitResponse = await waitForActiveCacheWrite(ctx);
     if (waitResponse) {
@@ -336,6 +346,6 @@ export async function fetchWithCache(
     }
   }
 
-  // 8. 发起请求并缓存
+  // 9. 发起请求并缓存
   return executeFetchAndCache(ctx, cachedEntry);
 }

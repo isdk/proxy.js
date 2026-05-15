@@ -97,4 +97,100 @@ describe('isCacheable Advanced Matching', () => {
       expect(await isCacheable(req2, config)).toBeTruthy();
     });
   });
+
+  describe('Body Matching (Gatekeeping)', () => {
+    it('JSON Body: 应使用 match 字段进行字段级或 Key 级门控', async () => {
+      const config: ProxySiteConfig = {
+        methods: ['POST'], // 必须显式允许 POST
+        rules: [{
+          body: {
+            type: 'json',
+            match: { id: true } // 必须有 id 字段
+          }
+        }]
+      };
+
+      // 有 id -> 通过
+      const req1 = new Request('https://api.com/', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 1, name: 'test' })
+      });
+      expect(await isCacheable(req1, config)).toBeTruthy();
+
+      // 无 id -> 拦截
+      const req2 = new Request('https://api.com/', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'test' })
+      });
+      expect(await isCacheable(req2, config)).toBeFalsy();
+    });
+
+    it('Text Body: 应使用 match 字段进行正则/通配符匹配', async () => {
+      const config: ProxySiteConfig = {
+        methods: ['POST'],
+        rules: [{
+          body: {
+            type: 'text',
+            match: '*success*' // 必须包含 success
+          }
+        }]
+      };
+
+      const req1 = new Request('https://api.com/', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: 'operation success'
+      });
+      expect(await isCacheable(req1, config)).toBeTruthy();
+
+      const req2 = new Request('https://api.com/', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: 'operation failed'
+      });
+      expect(await isCacheable(req2, config)).toBeFalsy();
+    });
+
+    it('Text Body: 如果 match 配置了对象模式，应视为不匹配', async () => {
+      const config: ProxySiteConfig = {
+        methods: ['POST'],
+        rules: [{
+          body: {
+            type: 'text',
+            match: { id: true } as any // 错误配置
+          }
+        }]
+      };
+
+      const req = new Request('https://api.com/', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: 'id: 1'
+      });
+      expect(await isCacheable(req, config)).toBeFalsy();
+    });
+
+    it('门控阶段不应再使用 extract 字段', async () => {
+      const config: ProxySiteConfig = {
+        methods: ['POST'],
+        rules: [{
+          body: {
+            type: 'text',
+            // match 缺失，虽然有 extract 但不应作为门控准则
+            extract: 'success' 
+          }
+        }]
+      };
+
+      const req = new Request('https://api.com/', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: 'failure'
+      });
+      // 因为 match 缺失，默认放行（门控不拦截）
+      expect(await isCacheable(req, config)).toBeTruthy();
+    });
+  });
 });

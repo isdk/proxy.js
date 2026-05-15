@@ -53,9 +53,9 @@ export async function generateCacheKey(
             json = await req.clone().json();
           }
         }
-        const jsonConfig = bodyConfig.match || (finalConfig.body as ProxyFieldConfig);
+        const jsonConfig = bodyConfig.extract || bodyConfig.match || (finalConfig.body as ProxyFieldConfig);
         // JSON Body 默认提取全部 (defaultAllowed: true)
-        bodyData = extractData(json, jsonConfig, true);
+        bodyData = extractData(json, jsonConfig as any, true);
       } else if (bodyConfig.extract && (contentType.includes('text/') || contentType.includes('application/xml') || contentType.includes('x-www-form-urlencoded'))) {
         const limit = bodyConfig.maxLength || 1024;
         const text = bodyState?.text || (await req.clone().text()).slice(0, limit);

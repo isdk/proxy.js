@@ -95,7 +95,7 @@ const myPostFetch = createCachedFetch({
 | `query` | `FieldConfig` | Query parameter filtering. Defaults to all. |
 | `headers` | `FieldConfig` | Header filtering. Defaults to none. |
 | `cookies` | `FieldConfig` | Cookie filtering. Defaults to none. |
-| `body` | `BodyConfig` | Body matching & extraction. |
+| `body` | `BodyConfig` | Body matching & extraction. Supports gatekeeping via `match` and fingerprinting via `extract`. |
 | `staleIfError`| `boolean` | Return stale cache on backend errors. |
 | `forceCache` | `boolean` | Force caching regardless of origin directives. |
 | `offline` | `boolean` | Strict offline mode: Read-only cache, returns `512` on cache miss. |
@@ -111,6 +111,18 @@ Define "what is valid and cacheable content" to automatically filter out WAF cha
 | `headers` | `FieldConfig` | Required or forbidden response headers. |
 | `body` | `MatchPatterns`| Response body matching. Supports Glob negation (e.g., `!*Challenge*`) to exclude dirty data. |
 | `minLength` | `number` | Minimum content length. Shorter responses will be intercepted (triggers `STALE_RESCUE`). |
+
+### `BodyConfig` Deep Dive
+
+For complex bodies, `@isdk/proxy` supports a clean separation of concerns:
+
+| Option | Type | Description |
+| :--- | :--- | :--- |
+| `type` | `'json' \| 'text' \| 'binary'` | Body type. Automatically determined by Content-Type if omitted. |
+| `match` | `FieldConfig \| MatchPatterns` | **Gatekeeping**. Field-level validation for JSON or Pattern matching for Text. |
+| `extract`| `FieldConfig \| MatchPatterns` | **Fingerprinting**. Priority over `match`. Supports field filtering for JSON fingerprints. |
+| `maxLength`| `number` | Maximum read limit during validation/extraction. |
+| `sort` | `boolean` | Sort JSON keys to ensure fingerprint stability. Defaults to `true`. |
 
 ### Cache Status Meanings (`x-proxy-cache`)
 
@@ -206,6 +218,37 @@ if (await isWAFChallenge(response)) {
 | **`{}` (Empty Object)**| **Pass (Valid)** | No rules defined means everything is allowed. |
 | **`[]` (Empty Array)** | **Fail (Invalid)** | No key can pass an empty matching set. |
 | **Empty Request** | **Depends on Category**| `query` passes by default; `headers/cookies` fail by default. |
+
+#### 🚀 Runtime Dynamic Configuration (`isdkProxy`)
+
+`@isdk/proxy` allows you to attach an `isdkProxy` property directly to the `Request` object. This is the **highest priority** configuration method, enabling you to adjust cache behavior dynamically based on business logic at the moment of the request.
+
+```typescript
+const req = new Request('https://api.example.com/data');
+
+// Attach runtime instructions
+(req as any).isdkProxy = {
+  refresh: true,              // Bypass cache and force a "healing" update
+  forceCache: true,           // Force caching even if origin says no-store
+  onBackgroundUpdate: (res) => { ... }, // Override global SWR callback
+  generateKey: async (req) => 'custom_key', // Override hashing logic
+  config: {                   // Temporary rule overrides
+    offline: true,            // Dynamic offline mode
+    body: {
+      match: ['*'],           // Gatekeeping: allow all
+      extract: ['id', '!ts']  // Extraction: exclude 'ts' field from fingerprint
+    }
+  }
+};
+
+const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
+```
+
+**Priority Order**:
+1.  **`Request.isdkProxy` (Runtime)** - Top-level override.
+2.  **`Matched Rule` (Rule Level)** - Specific rule matching the URL/Body.
+3.  **`Site Config` (Site Level)** - Domain-based configuration.
+4.  **`Global Config` (Global Level)** - System defaults.
 
 ---
 

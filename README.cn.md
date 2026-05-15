@@ -95,7 +95,7 @@ const myPostFetch = createCachedFetch({
 | `query` | `FieldConfig` | URL 查询参数过滤。默认全量提取。 |
 | `headers` | `FieldConfig` | 请求头过滤。默认全量**不**提取。 |
 | `cookies` | `FieldConfig` | Cookie 字段过滤。默认全量**不**提取。 |
-| `body` | `BodyConfig` | 请求体匹配与提取。支持 JSON 字段过滤、Text 正则提取和 Binary 全量哈希。 |
+| `body` | `BodyConfig` | 请求体匹配与提取。支持通过 `match` 进行门控准入，通过 `extract` 进行字段指纹提取。 |
 | `staleIfError`| `boolean` | 网络请求失败时，是否强制返回本地过期的旧缓存。 |
 | `forceCache` | `boolean` | 是否无视源站指令强制执行缓存。 |
 | `offline` | `boolean` | 离线模式。开启后只读缓存，若无缓存则返回状态码 `512` 的 Response (`OfflineCacheMissErrorCode`)。 |
@@ -111,6 +111,18 @@ const myPostFetch = createCachedFetch({
 | `headers` | `FieldConfig` | 响应头匹配要求。 |
 | `body` | `MatchPatterns`| 响应体内容匹配。支持 Glob 否定 (如 `!*Challenge*`) 排除脏数据。 |
 | `minLength` | `number` | 最小内容长度。小于此长度的响应将被拦截（触发 `STALE_RESCUE`）。 |
+
+### `BodyConfig` 请求体匹配与提取
+
+针对复杂的 Body，支持细化的职责分离：
+
+| 配置项 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `type` | `'json' \| 'text' \| 'binary'` | Body 类型。默认根据 Content-Type 自动判断。 |
+| `match` | `FieldConfig \| MatchPatterns` | **门控准入**。JSON 模式下支持字段校验，文本模式下支持通配符/正则。 |
+| `extract`| `FieldConfig \| MatchPatterns` | **指纹提取**。优先级高于 `match`。支持 JSON 字段级过滤（提取特定字段作为 Key）。 |
+| `maxLength`| `number` | 校验/提取时的最大 Body 长度限制。 |
+| `sort` | `boolean` | 是否对提取出的 JSON 键进行排序，确保指纹一致性。默认 `true`。 |
 
 ### 缓存状态说明 (`x-proxy-cache`)
 
@@ -167,6 +179,37 @@ if (await isWAFChallenge(response)) {
 | `onBackgroundUpdate`| `function` | 当触发后台更新时，接收该更新 Promise 的回调。可用作任务追踪。 |
 | `refresh` | `boolean` | **强制刷新**：忽略现有缓存（即使命中且新鲜也会回源），若回源拿到合法数据则自动更新并“愈合”缓存。常用于配合真人验证进行“穿透”。 |
 | `generateKey` | `function` | 自定义缓存键生成函数。 |
+
+#### 🚀 运行时动态配置 (`isdkProxy`)
+
+`@isdk/proxy` 支持在 `Request` 对象上直接添加 `isdkProxy` 属性。这是 **优先级最高** 的配置方式，允许你在发起请求的那一刻，根据业务逻辑动态调整缓存行为。
+
+```typescript
+const req = new Request('https://api.example.com/data');
+
+// 在 JS 环境下，你可以直接给 Request 添加属性
+(req as any).isdkProxy = {
+  refresh: true,              // 强制穿透：忽略现有缓存并更新（愈合模式）
+  forceCache: true,           // 强制缓存：即使源站禁止缓存也入库
+  onBackgroundUpdate: (res) => { ... }, // 运行时回调：覆盖全局的 SWR 回调
+  generateKey: async (req) => 'custom_key', // 自定义 Key：覆盖默认哈希逻辑
+  config: {                   // 临时覆盖缓存规则 (Site/Rule Config)
+    offline: true,            // 动态进入离线模式
+    body: {
+      match: ['*'],           // 门控：允许所有 Body
+      extract: ['id', '!ts']  // 提取：指纹中排除 ts 字段
+    }
+  }
+};
+
+const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
+```
+
+**优先级顺序**：
+1.  **`Request.isdkProxy` (运行时)** - 最顶级覆盖。
+2.  **`Matched Rule` (规则级)** - 针对特定 URL/Body 匹配出的规则。
+3.  **`Site Config` (站点级)** - 针对域名的基础配置。
+4.  **`Global Config` (全局级)** - 系统默认兜底。
 
 ### 模式匹配说明 (MatchPatterns)
 
