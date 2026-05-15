@@ -35,6 +35,7 @@ export const AWS_WAF_PRESET: ProxyCacheRule = {
  */
 export const GENERAL_WAF_PRESET: ProxyCacheRule = {
   response: {
+    statuses: ['!403', '!429'],
     body: [
       '!*captcha-delivery.com*',
       '!*g-recaptcha*',
