@@ -22,7 +22,7 @@ export function createFetchWithCache(activeCacheWrites?: Map<string, Promise<voi
   return async function fetchWithCacheBound(
     request: Request,
     fetcher: (req: Request) => Promise<Response>,
-    options: Omit<FetchWithCacheOptions, 'activeCacheWrites'>
+    options: FetchWithCacheOptions
   ): Promise<Response> {
     // 自动将隐藏的 activeCacheWrites 注入到底层调用中
     return fetchWithCache(request, fetcher, { ...options, activeCacheWrites });

@@ -5,23 +5,23 @@ import type { ProxySiteConfig } from '../types';
 describe('isCacheable', () => {
   it('默认情况下应允许 GET 和 HEAD', async () => {
     const config: ProxySiteConfig = {};
-    expect(await isCacheable(new Request('https://api.com/', { method: 'GET' }), config)).toBe(true);
-    expect(await isCacheable(new Request('https://api.com/', { method: 'HEAD' }), config)).toBe(true);
-    expect(await isCacheable(new Request('https://api.com/', { method: 'POST' }), config)).toBe(false);
+    expect(await isCacheable(new Request('https://api.com/', { method: 'GET' }), config)).toBeTruthy();
+    expect(await isCacheable(new Request('https://api.com/', { method: 'HEAD' }), config)).toBeTruthy();
+    expect(await isCacheable(new Request('https://api.com/', { method: 'POST' }), config)).toBeFalsy();
   });
 
   it('应该支持自定义允许的 methods', async () => {
     const config: ProxySiteConfig = { methods: ['GET', 'POST'] };
-    expect(await isCacheable(new Request('https://api.com/', { method: 'POST' }), config)).toBe(true);
-    expect(await isCacheable(new Request('https://api.com/', { method: 'PUT' }), config)).toBe(false);
+    expect(await isCacheable(new Request('https://api.com/', { method: 'POST' }), config)).toBeTruthy();
+    expect(await isCacheable(new Request('https://api.com/', { method: 'PUT' }), config)).toBeFalsy();
   });
 
   it('当配置了 cacheRules 时，只有匹配规则的才允许缓存', async () => {
     const config: ProxySiteConfig = {
       rules: [{ path: '/api/*' }]
     };
-    expect(await isCacheable(new Request('https://api.com/api/data'), config)).toBe(true);
-    expect(await isCacheable(new Request('https://api.com/other'), config)).toBe(false);
+    expect(await isCacheable(new Request('https://api.com/api/data'), config)).toBeTruthy();
+    expect(await isCacheable(new Request('https://api.com/other'), config)).toBeFalsy();
   });
 
   it('cacheRules 中的多项规则应为 OR 逻辑', async () => {
@@ -31,9 +31,9 @@ describe('isCacheable', () => {
         { query: { b: '1' } }
       ]
     };
-    expect(await isCacheable(new Request('https://api.com/a'), config)).toBe(true);
-    expect(await isCacheable(new Request('https://api.com/any?b=1'), config)).toBe(true);
-    expect(await isCacheable(new Request('https://api.com/c'), config)).toBe(false);
+    expect(await isCacheable(new Request('https://api.com/a'), config)).toBeTruthy();
+    expect(await isCacheable(new Request('https://api.com/any?b=1'), config)).toBeTruthy();
+    expect(await isCacheable(new Request('https://api.com/c'), config)).toBeFalsy();
   });
 
   it('单条 cacheRule 内部应为 AND 逻辑', async () => {
@@ -42,9 +42,9 @@ describe('isCacheable', () => {
         { path: '/api', query: { v: '1' } }
       ]
     };
-    expect(await isCacheable(new Request('https://api.com/api?v=1'), config)).toBe(true);
-    expect(await isCacheable(new Request('https://api.com/api'), config)).toBe(false);
-    expect(await isCacheable(new Request('https://api.com/other?v=1'), config)).toBe(false);
+    expect(await isCacheable(new Request('https://api.com/api?v=1'), config)).toBeTruthy();
+    expect(await isCacheable(new Request('https://api.com/api'), config)).toBeFalsy();
+    expect(await isCacheable(new Request('https://api.com/other?v=1'), config)).toBeFalsy();
   });
 
   it('应正确识别并过滤 bodyType', async () => {
@@ -57,13 +57,13 @@ describe('isCacheable', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    expect(await isCacheable(reqJson, config)).toBe(true);
+    expect(await isCacheable(reqJson, config)).toBeTruthy();
 
     const reqText = new Request('https://api.com/', {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' }
     });
-    expect(await isCacheable(reqText, config)).toBe(false);
+    expect(await isCacheable(reqText, config)).toBeFalsy();
   });
 
   it('body 匹配应遵循 maxLength 限制', async () => {
@@ -74,10 +74,10 @@ describe('isCacheable', () => {
     };
 
     const req1 = new Request('https://api.com/', { method: 'POST', body: 'hello world' });
-    expect(await isCacheable(req1, config)).toBe(true); // "hello" 在前 5 个字节
+    expect(await isCacheable(req1, config)).toBeTruthy(); // "hello" 在前 5 个字节
 
     const req2 = new Request('https://api.com/', { method: 'POST', body: '0hello' });
-    expect(await isCacheable(req2, config)).toBe(false); // "hello" 从第 1 位开始，超出了截取的 5 位范围
+    expect(await isCacheable(req2, config)).toBeFalsy(); // "hello" 从第 1 位开始，超出了截取的 5 位范围
   });
 
   it('即使设置了 cacheRules，不匹配 method 依然应返回 false', async () => {
@@ -86,6 +86,6 @@ describe('isCacheable', () => {
       rules: [{ path: '/**' }] // 允许所有路径
     };
     // 尽管路径匹配，但 method 是 POST，不在全局允许列表中
-    expect(await isCacheable(new Request('https://api.com/', { method: 'POST' }), config)).toBe(false);
+    expect(await isCacheable(new Request('https://api.com/', { method: 'POST' }), config)).toBeFalsy();
   });
 });

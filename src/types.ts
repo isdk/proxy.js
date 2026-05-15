@@ -95,6 +95,34 @@ export interface ProxyCacheRule {
    */
   body?: ProxyFieldConfig | ProxyBodyConfig | ProxyMatchPatterns;
   
+  /**
+   * Response-side cacheability criteria.
+   * 响应侧可缓存性判定准则。
+   */
+  response?: {
+    /** 
+     * Allowed HTTP statuses. 
+     * 允许缓存的状态码模式。
+     */
+    statuses?: ProxyMatchPatterns;
+    /** 
+     * Required or forbidden response headers.
+     * 响应头匹配要求。
+     */
+    headers?: ProxyFieldConfig;
+    /** 
+     * Response body matching patterns (for text/json).
+     * Supports Glob negation (e.g., "!*captcha*") to exclude dirty data.
+     * 响应体匹配模式（仅限文本/JSON）。支持 Glob 否定（如 "!*captcha*"）来排除脏数据。
+     */
+    body?: ProxyMatchPatterns;
+    /** 
+     * Minimum body length (in bytes) to be considered valid.
+     * 最小有效响应体长度（字节），防止缓存截断或错误页面。
+     */
+    minLength?: number;
+  };
+
   /** 
    * Fault tolerance: If backend fails (network error or 5xx), return stale cache if available.
    * 容错机制：当后端请求失败且存在旧缓存时，强制返回旧缓存。

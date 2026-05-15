@@ -1,5 +1,6 @@
 import pm from 'picomatch';
 import { isRegExpStr, toRegExp } from 'util-ex';
+import { ProxyFieldConfig, ProxyMatchPatterns } from '../types';
 
 /**
  * Checks if a string is a Glob pattern.
@@ -69,12 +70,54 @@ export function isMatch(
       return toRegExp(pattern).test(value);
     }
 
-    if (isGlob(pattern)) {
-      return pm(targetPattern, { dot: true })(targetValue);
+    if (isGlob(targetPattern)) {
+      return pm(targetPattern, { dot: true, bash: true })(targetValue);
     }
 
     return usePrefix ? targetValue.startsWith(targetPattern) : targetValue === targetPattern;
   }
 
   return false;
+}
+
+/**
+ * 通用字段匹配 (用于 Query, Headers, Cookies, Body)
+ */
+export function matchField(
+  source: URLSearchParams | Headers | Record<string, any>,
+  config: ProxyFieldConfig | ProxyMatchPatterns,
+  defaultAllowed: boolean = true
+): boolean {
+  if (config && typeof config === 'object' && !Array.isArray(config) && !(config instanceof RegExp)) {
+    // Record 模式: 执行 AND 匹配
+    for (const [key, pattern] of Object.entries(config)) {
+      let val: string | null = null;
+      let has = false;
+
+      if (source instanceof URLSearchParams || source instanceof Headers) {
+        val = (source as any).get(key);
+        has = (source as any).has(key);
+      } else {
+        val = source[key] ?? null;
+        has = source[key] !== undefined && source[key] !== null;
+      }
+
+      if (typeof pattern === 'boolean') {
+        if (pattern && !has) return false;
+        if (!pattern && has) return false;
+      } else {
+        if (val === null || !isMatch(pattern, val)) return false;
+      }
+    }
+    return true;
+  } else {
+    // MatchPatterns 模式: 执行 Key 门控 (只要存在匹配模式的 Key 即通过)
+    const keys = (source instanceof URLSearchParams || source instanceof Headers)
+      ? Array.from((source as any).keys())
+      : Object.keys(source);
+
+    if (keys.length === 0) return defaultAllowed;
+
+    return (keys as string[]).some(key => isMatch(config as ProxyMatchPatterns, key));
+  }
 }

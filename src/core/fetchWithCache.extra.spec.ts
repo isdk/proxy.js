@@ -49,19 +49,19 @@ describe('fetchWithCache Extra Validations', () => {
     };
 
     // 2. 触发 SWR
-    const res = await fetchWithCache(request, mockFetcher, { 
-      cache, 
-      config: {}, 
-      backgroundUpdate: true, 
+    const res = await fetchWithCache(request, mockFetcher, {
+      cache,
+      config: {},
+      backgroundUpdate: true,
       onBackgroundUpdate,
-      activeCacheWrites 
+      activeCacheWrites
     });
 
     expect(await res.text()).toBe('old');
     expect(capturedPromise).toBeDefined();
-    
+
     // 等待后台更新完成
-    const bgRes = await capturedPromise;
+    const bgRes = await capturedPromise!;
     expect(await bgRes.text()).toBe('new');
   });
 
@@ -94,7 +94,7 @@ describe('fetchWithCache Extra Validations', () => {
   it('应该处理不可存入缓存但满足匹配规则的响应', async () => {
     const { cache, activeCacheWrites } = await createTestCache('non-storable');
     const request = new Request('https://api.example.com/non-storable');
-    
+
     // 明确要求不准缓存的响应
     const mockFetcher = vi.fn().mockImplementation(async () => new Response('data', {
       headers: { 'Cache-Control': 'no-store' }
@@ -102,20 +102,20 @@ describe('fetchWithCache Extra Validations', () => {
 
     // 第一次：MISS
     const res1 = await fetchWithCache(request, mockFetcher, { cache, config: {}, activeCacheWrites });
-    expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
+    expect(res1.headers.get('x-proxy-cache')).toBe('MISS_UNSTORABLE');
     await res1.text();
     await Promise.all(activeCacheWrites.values());
 
     // 第二次：依然应该是 MISS，因为上一个没存入
     const res2 = await fetchWithCache(request, mockFetcher, { cache, config: {}, activeCacheWrites });
-    expect(res2.headers.get('x-proxy-cache')).toBe('MISS');
+    expect(res2.headers.get('x-proxy-cache')).toBe('MISS_UNSTORABLE');
     expect(mockFetcher).toHaveBeenCalledTimes(2);
   });
 
   it('应该支持自定义 generateKey 函数', async () => {
     const { cache, activeCacheWrites } = await createTestCache('custom-key');
     const request = new Request('https://api.example.com/data');
-    
+
     const customKey = 'my-custom-key';
     const generateKey = vi.fn().mockResolvedValue(customKey);
 

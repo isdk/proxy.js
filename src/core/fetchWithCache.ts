@@ -7,8 +7,9 @@ import type { SmartCache } from './SmartCache';
 import { generateCacheKey } from './generateCacheKey';
 import { ProxySiteConfig, ProxyCacheMetadata, ProxyCacheEntry, ProxyCacheRule } from '../types';
 import { OfflineCacheMissErrorCode, OfflineCacheMissErrorMsg } from '../errors';
-import { getEffectiveConfigFromRequest, isCacheable } from './isCacheable';
-import { createResponse } from '../utils';
+import { isCacheable } from './isCacheable';
+import { isResponseCacheable } from './isResponseCacheable';
+import { createResponse, getEffectiveConfig } from '../utils';
 
 /**
  * fetchWithCache 选项
@@ -20,6 +21,8 @@ export interface FetchWithCacheOptions {
   config: ProxySiteConfig;
   /** 是否启用后台异步更新 (SWR) */
   backgroundUpdate?: boolean;
+  /** 是否强制刷新缓存（跳过读取，但请求成功后会更新缓存） */
+  refresh?: boolean;
   /** 后台更新 Promise 触发时的回调 */
   onBackgroundUpdate?: (promise: Promise<Response>) => void;
   /** 自定义缓存键生成函数 */
@@ -63,7 +66,7 @@ function createResponseBody(body: any): BodyInit {
 }
 
 /**
- * 构建响应对象
+ * 从Cache构建响应对象
  */
 function buildResponseFromCache(entry: ProxyCacheEntry, cacheStatus: string): Response {
   const body = (entry.status === 204 || entry.status === 304 || entry.status < 200)
@@ -75,28 +78,6 @@ function buildResponseFromCache(entry: ProxyCacheEntry, cacheStatus: string): Re
     headers: { ...entry.headers, 'x-proxy-cache': cacheStatus },
     url: entry.url
   });
-}
-
-/**
- * 构建上下文对象
- */
-async function buildFetchWithCacheContext(
-  request: Request,
-  fetcher: (req: Request) => Promise<Response>,
-  options: FetchWithCacheOptions
-): Promise<FetchWithCacheContext> {
-  const genKey = options.generateKey || generateCacheKey;
-  const cacheKey = await genKey(request, options.config);
-  const effectiveConfig = await getEffectiveConfigFromRequest(request, options.config);
-
-  return {
-    ...options,
-    request,
-    fetcher,
-    cacheKey,
-    effectiveConfig,
-    activeCacheWrites: options.activeCacheWrites || new Map<string, Promise<void>>()
-  };
 }
 
 /**
@@ -162,18 +143,24 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
 
   try {
     const response = await ctx.fetcher(ctx.request.clone());
-
-    const newPolicy = new CachePolicy(
-      { url: ctx.request.url, method: ctx.request.method, headers: Object.fromEntries(ctx.request.headers) },
-      { status: response.status, headers: Object.fromEntries(response.headers) }
-    );
-
     const responseHeaders = new Headers(response.headers);
-    responseHeaders.set('x-proxy-cache', 'MISS');
-    debug('executeFetch And Cache', ctx.request.url)
 
-    if (!newPolicy.storable() && !ctx.effectiveConfig.forceCache) {
+    // 1. 响应侧校验 (WAF 识别、脏数据拦截)
+    const validation = await isResponseCacheable(response, ctx.effectiveConfig);
+    if (!validation.cacheable) {
+      debug('Response not cacheable:', validation.reason);
       resolveWrite();
+
+      // 如果触发了容灾保护 (例如命中 WAF 挑战且存在旧缓存)，则返回旧缓存
+      if (validation.keepOldCache && fallbackEntry) {
+        const reason = validation.reason?.toUpperCase().replace(/[^A-Z0-9]/g, '_') || 'UNKNOWN';
+        debug(`Triggering DR protection (${reason}), returning old cache`);
+        return buildResponseFromCache(fallbackEntry, `STALE_RESCUE_${reason}`);
+      }
+
+      // 观点 A：即使不缓存，也打上细化的标记说明原因
+      const reason = validation.reason?.toUpperCase().replace(/[^A-Z0-9]/g, '_') || 'UNKNOWN';
+      responseHeaders.set('x-proxy-cache', `MISS_EXCLUDED_${reason}`);
       return createResponse(response.body, {
         status: response.status,
         statusText: response.statusText,
@@ -181,6 +168,30 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
         url: response.url
       });
     }
+
+    const newPolicy = new CachePolicy(
+      { url: ctx.request.url, method: ctx.request.method, headers: Object.fromEntries(ctx.request.headers) },
+      { status: response.status, headers: Object.fromEntries(response.headers) }
+    );
+
+    debug('executeFetch And Cache', ctx.request.url)
+
+    // 2. 存储决策
+    // forceCache 允许忽略 no-store，但基础状态码仍需由 isResponseCacheable 保证 (默认 2xx, 404 等)
+    const isStorable = newPolicy.storable() || ctx.effectiveConfig.forceCache;
+
+    if (!isStorable) {
+      resolveWrite();
+      responseHeaders.set('x-proxy-cache', 'MISS_UNSTORABLE');
+      return createResponse(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+        url: response.url
+      });
+    }
+
+    responseHeaders.set('x-proxy-cache', 'MISS');
 
     const metadata: Omit<ProxyCacheMetadata, 'size'> = {
       status: response.status,
@@ -235,38 +246,65 @@ export async function fetchWithCache(
   fetcher: (req: Request) => Promise<Response>,
   options: FetchWithCacheOptions
 ): Promise<Response> {
-  // 1. 初始化上下文（生成 Key 并合并配置）
-  const ctx = await buildFetchWithCacheContext(request, fetcher, options);
-  const { effectiveConfig } = ctx;
+  const { config, cache } = options;
 
-  // 2. 尝试读取缓存
-  const cachedEntry = await ctx.cache.get(ctx.cacheKey);
+  // 1. 请求分析 (门控、规则匹配、配置合并)
+  const cacheabled = await isCacheable(request, config);
+  const effectiveConfig = getEffectiveConfig(cacheabled?.matchedRule || {}, config);
 
-  // 3. 处理离线模式：使用最终合并后的 effectiveConfig
+  // 2. 检查可缓存性
+  if (!cacheabled) {
+    if (effectiveConfig.offline) {
+      return createResponse(OfflineCacheMissErrorMsg, {
+        status: OfflineCacheMissErrorCode,
+        headers: { 'x-proxy-cache': 'OFFLINE_MISS_EXCLUDED_REQUEST' },
+        url: request.url
+      });
+    }
+    const response = await fetcher(request) || {};
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.set('x-proxy-cache', 'MISS_EXCLUDED_REQUEST');
+
+    return createResponse(createResponseBody(response.body), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+      url: response.url
+    });
+  }
+
+  const { bodyState } = cacheabled;
+
+  // 3. 生成缓存键 (利用已有的 bodyState 和 effectiveConfig 避免重复读取/合并)
+  const genKey = options.generateKey || generateCacheKey;
+  const cacheKey = await genKey(request, config, bodyState, effectiveConfig);
+
+  const ctx: FetchWithCacheContext = {
+    ...options,
+    request,
+    fetcher,
+    cacheKey,
+    effectiveConfig,
+    activeCacheWrites: options.activeCacheWrites || new Map<string, Promise<void>>()
+  };
+
+  // 4. 尝试读取缓存
+  const cachedEntry = await cache.get(cacheKey);
+
+  // 5. 处理离线模式
   if (effectiveConfig.offline) {
     if (cachedEntry) return buildResponseFromCache(cachedEntry, 'OFFLINE_HIT');
     return createResponse(OfflineCacheMissErrorMsg, {
-    status: OfflineCacheMissErrorCode,
-    headers: { 'x-proxy-cache': 'OFFLINE_HIT' },
-    url: request.url
-  });
-    // throw new OfflineCacheMissError(request.url);
+      status: OfflineCacheMissErrorCode,
+      headers: { 'x-proxy-cache': 'OFFLINE_HIT' },
+      url: request.url
+    });
   }
 
-  // 4. 判断当前请求是否允许进入缓存流程
-  // 注意：isCacheable 内部也会尝试匹配 rules，这里已经匹配过了，
-  // 但为了逻辑解耦，我们依然调用它（它内部很快，因为 bodyState 可能已被缓存，或者这里我们可以优化）。
-  if (!(await isCacheable(request, options.config))) {
-    return fetcher(request);
-  }
-
-  // 5. 判定命中状态
-  if (cachedEntry) {
+  // 6. 判定命中状态 (如果开启 refresh 则跳过命中判定，强制回源)
+  if (cachedEntry && !options.refresh) {
     const status = evaluateCachePolicy(ctx, cachedEntry);
     debug('evaluateCachePolicy:', request.url, status)
-    if (cachedEntry.policy?.resh && Object.keys(cachedEntry.policy.resh).length) {
-      debug('evaluateCachePolicy:', 'resh =', JSON.stringify(cachedEntry.policy.resh))
-    }
 
     if (status === 'HIT') {
       return buildResponseFromCache(cachedEntry, 'HIT');
@@ -278,15 +316,26 @@ export async function fetchWithCache(
     }
   }
 
-  // 6. 防击穿处理
-  if (ctx.activeCacheWrites.has(ctx.cacheKey)) {
+  // 7. 防击穿处理
+  if (ctx.activeCacheWrites.has(cacheKey)) {
     const waitResponse = await waitForActiveCacheWrite(ctx);
     if (waitResponse) {
       debug('activeCacheWrites has this, waiting response', request.url)
+      // 如果当前是强制刷新模式，合并后的响应也应标注为刷新状态
+      if (options.refresh) {
+        const headers = new Headers(waitResponse.headers);
+        headers.set('x-proxy-cache', 'MISS');
+        return createResponse(waitResponse.body, {
+          status: waitResponse.status,
+          statusText: waitResponse.statusText,
+          headers,
+          url: waitResponse.url
+        });
+      }
       return waitResponse;
     }
   }
 
-  // 7. 发起请求并缓存
+  // 8. 发起请求并缓存
   return executeFetchAndCache(ctx, cachedEntry);
 }

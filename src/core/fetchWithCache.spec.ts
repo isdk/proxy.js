@@ -169,13 +169,13 @@ describe('fetchWithCache', () => {
 
     const res1 = await fetchWithCache(request, mockFetcher, { cache, config, activeCacheWrites });
     expect(await res1.text()).toBe('secret data');
-    expect(res1.headers.get('x-proxy-cache')).toBe('MISS');
+    expect(res1.headers.get('x-proxy-cache')).toBe('MISS_UNSTORABLE');
 
     await Promise.all(activeCacheWrites.values());
 
     const res2 = await fetchWithCache(request, mockFetcher, { cache, config, activeCacheWrites });
     expect(await res2.text()).toBe('secret data');
-    expect(res2.headers.get('x-proxy-cache')).toBe('MISS');
+    expect(res2.headers.get('x-proxy-cache')).toBe('MISS_UNSTORABLE');
 
     expect(mockFetcher).toHaveBeenCalledTimes(2);
   });

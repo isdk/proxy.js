@@ -1,18 +1,28 @@
 import { createHash } from 'node:crypto';
 import { isRegExpStr, toRegExp } from 'util-ex';
 import { extractData, normalizeBodyConfig } from '../utils';
-import { ProxySiteConfig, ProxyFieldConfig } from '../types';
+import { ProxySiteConfig, ProxyFieldConfig, ProxyCacheRule } from '../types';
 import { getEffectiveConfigFromRequest } from './isCacheable';
 
 /**
  * 根据 Request 对象和配置生成唯一的缓存指纹 (异步)
+ *
+ * @param req 请求对象
+ * @param siteConfig 站点级配置
+ * @param bodyState 可选的 Body 读取状态（用于性能优化，避免重复读取）
+ * @param effectiveConfig 可选的最终生效配置（用于性能优化，避免重复合并）
  */
-export async function generateCacheKey(req: Request, config: ProxySiteConfig): Promise<string> {
+export async function generateCacheKey(
+  req: Request,
+  siteConfig: ProxySiteConfig,
+  bodyState?: { text: string | null; checked: boolean; limit: number; json?: any },
+  effectiveConfig?: ProxyCacheRule
+): Promise<string> {
   const url = new URL(req.url);
   const method = req.method.toUpperCase();
 
   // 第一步：获取最终生效配置 (Rule -> Site -> Global)
-  const finalConfig = await getEffectiveConfigFromRequest(req, config);
+  const finalConfig = effectiveConfig || await getEffectiveConfigFromRequest(req, siteConfig);
 
   // 提取 Cookie 对象
   const cookieStr = req.headers.get('cookie') || '';
@@ -35,13 +45,20 @@ export async function generateCacheKey(req: Request, config: ProxySiteConfig): P
       const bodyConfig = normalizeBodyConfig(finalConfig.body);
 
       if (contentType.includes('application/json')) {
-        const json = await req.clone().json();
+        let json = (bodyState as any)?.json;
+        if (!json) {
+          if (bodyState?.text) {
+            json = JSON.parse(bodyState.text);
+          } else {
+            json = await req.clone().json();
+          }
+        }
         const jsonConfig = bodyConfig.match || (finalConfig.body as ProxyFieldConfig);
         // JSON Body 默认提取全部 (defaultAllowed: true)
         bodyData = extractData(json, jsonConfig, true);
       } else if (bodyConfig.extract && (contentType.includes('text/') || contentType.includes('application/xml') || contentType.includes('x-www-form-urlencoded'))) {
         const limit = bodyConfig.maxLength || 1024;
-        const text = (await req.clone().text()).slice(0, limit);
+        const text = bodyState?.text || (await req.clone().text()).slice(0, limit);
         const extractPattern = bodyConfig.extract;
         const regex = typeof extractPattern === 'string' && isRegExpStr(extractPattern)
           ? toRegExp(extractPattern)

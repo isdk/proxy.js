@@ -1,47 +1,5 @@
-import { ProxySiteConfig, ProxyCacheRule, ProxyFieldConfig, ProxyMatchPatterns } from '../types';
-import { isMatch, getEffectiveConfig, normalizeBodyConfig } from '../utils';
-
-/**
- * 通用字段匹配 (用于 Query, Headers, Cookies, Body)
- */
-function matchField(
-  source: URLSearchParams | Headers | Record<string, any>,
-  config: ProxyFieldConfig | ProxyMatchPatterns,
-  defaultAllowed: boolean = true
-): boolean {
-  if (config && typeof config === 'object' && !Array.isArray(config) && !(config instanceof RegExp)) {
-    // Record 模式: 执行 AND 匹配
-    for (const [key, pattern] of Object.entries(config)) {
-      let val: string | null = null;
-      let has = false;
-
-      if (source instanceof URLSearchParams || source instanceof Headers) {
-        val = source.get(key);
-        has = source.has(key);
-      } else {
-        val = source[key] ?? null;
-        has = source[key] !== undefined && source[key] !== null;
-      }
-
-      if (typeof pattern === 'boolean') {
-        if (pattern && !has) return false;
-        if (!pattern && has) return false;
-      } else {
-        if (val === null || !isMatch(pattern, val)) return false;
-      }
-    }
-    return true;
-  } else {
-    // MatchPatterns 模式: 执行 Key 门控 (只要存在匹配模式的 Key 即通过)
-    const keys = (source instanceof URLSearchParams || source instanceof Headers)
-      ? Array.from((source as any).keys())
-      : Object.keys(source);
-
-    if (keys.length === 0) return defaultAllowed;
-
-    return (keys as string[]).some(key => isMatch(config as ProxyMatchPatterns, key));
-  }
-}
+import { ProxySiteConfig, ProxyCacheRule, ProxyMatchPatterns } from '../types';
+import { isMatch, getEffectiveConfig, normalizeBodyConfig, matchField } from '../utils';
 
 /**
  * 获取请求匹配到的规则
@@ -166,20 +124,59 @@ async function matchRule(
 }
 
 /**
- * 判断当前请求是否满足可缓存的基础条件
+ * 请求分析结果 (当 isCacheable 返回非 false 时)
  */
-export async function isCacheable(request: Request, config: ProxySiteConfig): Promise<boolean> {
+export interface CacheAnalysis {
+  /** 匹配到的细化规则 */
+  matchedRule: ProxyCacheRule | null;
+  /** 请求体读取状态（可供后续生成 Key 等环节复用） */
+  bodyState: { text: string | null; checked: boolean; limit: number };
+}
+
+/**
+ * 判断当前请求是否满足可缓存的基础条件并返回分析结果
+ *
+ * @param request 请求对象
+ * @param config 站点级配置
+ * @returns 如果不可缓存则返回 false，否则返回 CacheAnalysis 对象
+ */
+export async function isCacheable(
+  request: Request,
+  config: ProxySiteConfig
+): Promise<CacheAnalysis | undefined> {
   const method = request.method.toUpperCase();
+  const url = new URL(request.url);
 
-  // 1. 站点级方法检查
-  const allowedMethods = config.methods || ['GET', 'HEAD'];
-  if (!isMatch(allowedMethods, method)) return false;
+  // 1. 初始化 Body 读取状态 (Gatekeeping 和 Fingerprinting 共享)
+  const siteBody = normalizeBodyConfig(config.body);
+  const limit = siteBody.maxLength || 1024;
+  const bodyState = { text: null, checked: false, limit };
 
-  // 2. 规则匹配
-  if (config.rules && config.rules.length > 0) {
-    const rule = await getMatchedRule(request, config);
-    return rule !== null;
+  // 2. 站点级基础检查 (Gatekeeping)
+  // 如果站点未配置 methods，默认仅允许 GET, HEAD
+  const baseConfig = {
+    ...config,
+    methods: config.methods || ['GET', 'HEAD']
+  };
+
+  const passSiteGate = await matchRule(baseConfig, method, url, request, bodyState);
+
+  if (!passSiteGate) {
+    return;
   }
 
-  return true;
+  // 3. 细化规则匹配
+  let matchedRule: ProxyCacheRule | null = null;
+  if (config.rules && config.rules.length > 0) {
+    matchedRule = await getMatchedRule(request, config, bodyState);
+    if (!matchedRule) {
+      // 如果定义了 rules 但没有一条匹配，则不可缓存
+      return;
+    }
+  }
+
+  return {
+    matchedRule,
+    bodyState
+  };
 }

@@ -69,6 +69,7 @@ describe('isMatch', () => {
       // 匹配 /api/** 但排除 /api/private/**
       expect(isMatch(['!/api/private/**', '/api/**'], '/api/public/data')).toBe(true);
       expect(isMatch(['!/api/private/**', '/api/**'], '/api/private/data')).toBe(false);
+      expect(isMatch(['/api/**', '!/api/private/**'], '/api/private/data')).toBe(false);
     });
 
     it('否定模式优先级高于正向模式', () => {

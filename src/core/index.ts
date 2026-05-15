@@ -5,3 +5,5 @@ export * from './createFetchWithCache';
 export * from './createCachedFetch';
 export * from './prefetch';
 export * from './isCacheable';
+export * from './isResponseCacheable';
+export * from './wafPresets';

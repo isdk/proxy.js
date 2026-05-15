@@ -21,11 +21,13 @@ export function createCachedFetch(defaultOptions: FetchWithCacheOptions) {
   return async function cachedFetch(
     request: Request,
     fetcher: (req: Request) => Promise<Response>,
-    overrideOptions?: Partial<FetchWithCacheOptions>
+    overrideOptions?: FetchWithCacheOptions
   ): Promise<Response> {
     return fetchWithCacheBound(request, fetcher, {
       ...defaultOptions,
       ...overrideOptions,
+      activeCacheWrites: overrideOptions?.activeCacheWrites || defaultOptions.activeCacheWrites,
+      refresh: overrideOptions?.refresh
     });
   };
 }
