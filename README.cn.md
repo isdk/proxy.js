@@ -20,8 +20,9 @@
 - **🧠 智能元数据驻留**: 无论文件多大，元数据 (Headers, Status, Policy) 始终驻留在内存中，确保纳秒级的缓存策略判定。
 - **🔄 过期后异步更新 (SWR)**: 立即返回过期数据，同时在后台静默更新缓存，实现“零等待”响应。
 - **🛡️ 请求合并防击穿 (Request Coalescing)**: 当大量并发请求同一资源时，通过全局 Map 合并排队，确保只有一个源站网络请求被发出，彻底防止缓存击穿。
-- **🚑 强离线容灾**: 当后端服务宕机时，自动强制返回旧缓存 (`staleIfError`)；甚至可以无视 `no-store` 指令强制缓存一切内容 (`forceCache`)。
-- **🕵️ 透明的缓存状态**: 自动在返回结果中注入 `x-proxy-cache` 响应头 (`HIT`, `STALE`, `MISS`, `STALE_IF_ERROR`)，极大方便调试与监控。
+- **🚑 强离线容灾与 STALE_RESCUE**: 当后端服务宕机时，自动强制返回旧缓存 (`staleIfError`)；检测到 WAF 人机挑战、脏数据（通过 `minLength` 或 `body` 匹配）或 403/429 拦截时，自动保护并返回旧缓存 (`STALE_RESCUE`)，确保“旧的正确数据”不被“新的错误数据”覆盖。
+- **🛡️ 内置 WAF 挑战识别**: 预集成 Cloudflare、AWS WAF 等人机挑战识别预设，开箱即用。
+- **🕵️ 透明的缓存状态**: 自动在返回结果中注入 `x-proxy-cache` 响应头 (`HIT`, `STALE`, `MISS`, `STALE_RESCUE`, `STALE_IF_ERROR`)，极大方便调试与监控。
 - **🌐 环境中立**: 完美适配所有支持 Web 标准 `Request`/`Response` API 的环境。
 
 ## 安装
@@ -98,6 +99,57 @@ const myPostFetch = createCachedFetch({
 | `staleIfError`| `boolean` | 网络请求失败时，是否强制返回本地过期的旧缓存。 |
 | `forceCache` | `boolean` | 是否无视源站指令强制执行缓存。 |
 | `offline` | `boolean` | 离线模式。开启后只读缓存，若无缓存则返回状态码 `512` 的 Response (`OfflineCacheMissErrorCode`)。 |
+| `response` | `ResponseConfig` | 响应侧可缓存性校验。支持状态码、Header 及 Body 内容匹配。 |
+
+### `ResponseConfig` 响应校验
+
+通过 `response` 字段，你可以精准定义“什么是有效且值得缓存的内容”，从而自动屏蔽 WAF 挑战页面。
+
+| 配置项 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `statuses` | `MatchPatterns`| 允许缓存的状态码模式。默认支持 200, 404, 301 等常见状态。 |
+| `headers` | `FieldConfig` | 响应头匹配要求。 |
+| `body` | `MatchPatterns`| 响应体内容匹配。支持 Glob 否定 (如 `!*Challenge*`) 排除脏数据。 |
+| `minLength` | `number` | 最小内容长度。小于此长度的响应将被拦截（触发 `STALE_RESCUE`）。 |
+
+### 缓存状态说明 (`x-proxy-cache`)
+
+| 状态码 | 说明 |
+| :--- | :--- |
+| `HIT` | 缓存命中，内容新鲜且在有效期内。 |
+| `OFFLINE_HIT` | 离线模式下成功命中缓存。 |
+| `STALE` | 缓存命中但已过期，已触发 SWR 后台异步更新。 |
+| `MISS` | 缓存未命中，已发起源站请求并存入缓存。 |
+| `STALE_IF_ERROR` | 源站请求失败（网络错误或 5xx），强制返回过期的旧缓存作为兜底。 |
+| `STALE_RESCUE_{REASON}` | 容灾保护中。响应校验失败（如 `WAF_CHALLENGE` 或 `TOO_SHORT`），为保护数据一致性返回旧缓存。 |
+| `MISS_EXCLUDED_REQUEST` | 请求因配置规则（方法、路径等）被排除在缓存之外。 |
+| `OFFLINE_MISS_EXCLUDED_REQUEST` | 离线模式下，请求不符合缓存规则且无本地缓存。 |
+| `MISS_UNSTORABLE` | 响应不可存储（如 `no-store` 指令且未开启 `forceCache`）。 |
+| `MISS_EXCLUDED_{REASON}` | 响应侧校验未通过（如 Body 过短或识别到 `WAF_CHALLENGE`）。 |
+| `MISS_EXCLUDED_WAF_CHALLENGE`| 明确识别到人机挑战页面且无可用旧缓存。 |
+
+### 内置 WAF 防护
+
+`@isdk/proxy` 内置了主流 WAF 厂商的识别规则，默认开启。你可以通过 `isResponseCacheable` 的选项控制，或在规则中引入：
+
+```typescript
+import { CLOUDFLARE_WAF_PRESET, AWS_WAF_PRESET, isWAFChallenge } from '@isdk/proxy';
+
+// 场景 A：声明式拦截（在配置规则中自动屏蔽挑战页）
+const config = {
+  rules: [
+    { 
+      path: '/api/**', 
+      ...CLOUDFLARE_WAF_PRESET // 针对特定路径应用 CF 验证
+    }
+  ]
+}
+
+// 场景 B：编程式判定（在业务逻辑中主动识别）
+if (await isWAFChallenge(response)) {
+  console.log('检测到人机挑战，需人工介入');
+}
+```
 
 ### `ProxyCacheRule` 规则对象
 
@@ -113,6 +165,7 @@ const myPostFetch = createCachedFetch({
 | :--- | :--- | :--- |
 | `backgroundUpdate` | `boolean` | 是否启用后台异步更新 (SWR)。默认为 `true`。 |
 | `onBackgroundUpdate`| `function` | 当触发后台更新时，接收该更新 Promise 的回调。可用作任务追踪。 |
+| `refresh` | `boolean` | **强制刷新**：忽略现有缓存（即使命中且新鲜也会回源），若回源拿到合法数据则自动更新并“愈合”缓存。常用于配合真人验证进行“穿透”。 |
 | `generateKey` | `function` | 自定义缓存键生成函数。 |
 
 ### 模式匹配说明 (MatchPatterns)
@@ -371,12 +424,55 @@ if (response.status === OfflineCacheMissErrorCode) {
 
 ### 缓存状态标头 (Cache Status Headers)
 
-由 `@isdk/proxy` 处理并返回的所有 `Response`，其 Headers 中都会注入 `x-proxy-cache` 字段以便观测生命周期，可能的值有：
+由 `@isdk/proxy` 处理并返回的所有 `Response`，其 Headers 中都会注入 `x-proxy-cache` 字段以便观测生命周期。为了实现精准的观测与调试，该标头进行了细粒度的划分：
 
-- `HIT`: 完美命中，数据完全来自于 L1 内存或 L2 磁盘缓存。
-- `MISS`: 缓存未命中（或主动绕过缓存），数据真实来自于源站请求。
-- `STALE`: 命中过期缓存（已通过 SWR 机制在后台发起了静默网络更新）。
-- `STALE_IF_ERROR`: 源站请求失败（网络断开或报错），系统作为兜底强制返回了过期的旧缓存。
+- **核心命中状态**:
+  - `HIT`: 完美命中。数据完全来自于 L1 内存或 L2 磁盘缓存，且处于有效期内。
+  - `OFFLINE_HIT`: 离线模式命中。在 `offline: true` 模式下成功从缓存读取数据。
+- **回源与更新状态**:
+  - `MISS`: 缓存未命中。数据真实来自于源站请求，且响应符合缓存规则，已存入缓存。
+  - `STALE`: 命中过期缓存。数据来自缓存，但已触发 SWR (Stale-While-Revalidate) 机制在后台静默发起网络更新。
+- **异常与兜底状态**:
+  - `STALE_IF_ERROR`: 源站请求失败（网络断开或 5xx 错误），系统作为兜底强制返回了过期的旧缓存。
+  - `STALE_RESCUE_{REASON}`: 容灾保护命中。当源站返回非预期数据时，拒绝更新坏缓存并强制返回旧的有效缓存。
+- **排除状态 (未缓存原因)**:
+  - `MISS_EXCLUDED_REQUEST`: 请求本身不符合缓存规则（如方法不支持、路径被排除等）。
+  - `OFFLINE_MISS_EXCLUDED_REQUEST`: 离线模式下，请求不符合规则且无可用缓存。
+  - `MISS_UNSTORABLE`: 响应本身不符合缓存规范（如 `Cache-Control: no-store` 或状态码不在缓存范围内）。
+  - `MISS_EXCLUDED_{REASON}`: 响应侧校验未通过，数据虽然来自源站但不会被存入缓存。
+
+**常见的 `{REASON}` 后缀含义：**
+
+| 后缀 | 含义 |
+| :--- | :--- |
+| `WAF_CHALLENGE` | 明确识别到人机挑战页面（由内置或自定义 WAF 规则判定）。 |
+| `TOO_SHORT` | 响应体长度未达到配置的 `minLength` 阈值。 |
+| `BODY_MATCH_FAILED` | 响应内容未通过 Body 关键字校验（命中排除项或未命中必含项）。 |
+| `STATUS_MISMATCH_{CODE}` | 状态码不在允许缓存的范围内（如 `STATUS_MISMATCH_503`）。 |
+| `HEADERS_MISMATCH` | 响应头不满足配置的匹配要求。 |
+| `BODY_READ_ERROR` | 尝试读取响应体进行内容分析时发生错误。 |
+| `UNKNOWN` | 其他未知原因导致的校验失败。 |
+
+### 响应对象特性
+
+为了确保下游处理的一致性，`fetchWithCache` 返回的 `Response` 对象具有以下特性：
+
+1. **URL 持久化**: 即使是手动从缓存构建的响应，其 `response.url` 也会正确保留原始请求的 URL。
+2. **克隆友好**: 调用 `response.clone()` 产生的副本将完美继承所有自定义属性（包括 `url` 和注入的标头）。
+
+### 调试 (Debugging)
+
+本库集成了 [debug](https://github.com/debug-js/debug) 模块，可以通过设置环境变量开启详细的内部追踪日志：
+
+```bash
+# 开启所有 fetch 相关的缓存逻辑追踪
+DEBUG=@isdk/proxy:fetchWithCache node app.js
+
+# 开启所有日志
+DEBUG=@isdk/proxy:* node app.js
+```
+
+日志涵盖了配置合并、指纹生成、缓存策略评估、后台 SWR 任务触发以及响应侧校验等关键环节。
 
 ## 许可证
 
