@@ -183,25 +183,31 @@ if (await isWAFChallenge(response)) {
 
 #### 1. MatchPatterns Mode
 
-* **Types**: `string | RegExp | Array`
-* **Semantic**: **Existence Filter**. "At least one field in the request must match this pattern."
-* **Logic**: Based on `some` logic.
+*   **Types**: `string | RegExp | Array`
+*   **Semantic**: Distinction between **Single Value (String/Regex)** and **List Mode (Array)**.
 
-| Config Example | Semantic | Result for Empty Request |
+| Form | Matching Rule (Blocking) | Description | Typical Use Case |
+| :--- | :--- | :--- | :--- |
+| **Single Value (String/Regex)** | **Strict (All keys)** | **Every** key in the request must satisfy this rule. | **Strict Exclusion/Access**. e.g., `!id` strictly forbids 'id' entirely; `id` only allows requests with 'id' alone. |
+| **List Mode (Array)** | **Lenient (Any key)** | Matches if **any** key satisfies the rule; **negations are ignored** during matching. | **Parameter Filtering**. e.g., `['*', '!sid']` ignores 'sid' for the cache key without blocking the request. |
+
+##### Behavior Comparison:
+
+| Config Example | Is Request Blocked? | What's in the Cache Key? |
 | :--- | :--- | :--- |
-| `['*']` | Pass if any field exists. | ❌ Blocked (No keys to match) |
-| `['id', 'name']` | Must contain 'id' or 'name'. | ❌ Blocked |
-| `['*', '!sid']` | Must contain fields other than 'sid'.| ❌ Blocked |
-| `[]` (Empty Array) | Block all (No key can match an empty array).| ❌ Blocked |
+| `query: '!id'` | ❌ Blocked if `id` is present | All params except `id` |
+| `query: ['*', '!id']` | ✅ Not blocked even if only `id` exists | All params except `id` |
+| `query: 'id'` | ✅ Only allowed if `id` is the **only** key | Only `id` field |
+| `query: ['id']` | ✅ Allowed if `id` is present | Only `id` field |
 
 > [!TIP]
-> **MatchPatterns is best for Whitelists or coarse Blacklists.** e.g., `query: ['id']` means "the request must have an id parameter and will be cached based ONLY on that id."
+> **Simple Rule**: Use a single value for "Strict format constraints"; use an array for "Excluding parameters from the cache key".
 
 #### 2. Record Mode
 
-* **Types**: `Record<string, ProxyMatchPatterns | boolean>`
-* **Semantic**: **Field Validation**. Logic declarations for specific keys.
-* **Logic**: Based on `AND` logic.
+*   **Types**: `Record<string, ProxyMatchPatterns | boolean>`
+*   **Semantic**: **Field Validation**. Logic declarations for specific keys.
+*   **Logic**: Based on `AND` logic.
 
 | Config Example | Semantic | Result for Empty Request |
 | :--- | :--- | :--- |

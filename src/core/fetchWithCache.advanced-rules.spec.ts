@@ -213,14 +213,16 @@ describe('fetchWithCache Advanced Rules (Regex & Glob)', () => {
     let res = await fetchWithCache(new Request('https://api.com/', {
       headers: { 'x-dynamic-id': '123' }
     }), mockFetcher, { cache, config, activeCacheWrites });
-    expect(res.headers.get('x-proxy-cache')).toBe('MISS_EXCLUDED_REQUEST');
+    // 现在数组模式门控宽松，应该通过 (MISS)
+    expect(res.headers.get('x-proxy-cache')).toBe('MISS');
     await res.text();
     await Promise.all(activeCacheWrites.values());
 
     res = await fetchWithCache(new Request('https://api.com/', {
       headers: { 'x-dynamic-id': '456' }
     }), mockFetcher, { cache, config, activeCacheWrites });
-    expect(res.headers.get('x-proxy-cache')).toBe('MISS_EXCLUDED_REQUEST');
+    // 由于 x-dynamic-id 在指纹阶段被剔除，第二个请求应该命中缓存 (HIT)
+    expect(res.headers.get('x-proxy-cache')).toBe('HIT');
 
     res = await fetchWithCache(new Request('https://api.com/', {
       headers: { 'x-dynamic': '456' }

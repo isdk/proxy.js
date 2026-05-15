@@ -18,20 +18,20 @@ describe('isCacheable Advanced Matching', () => {
       expect(await isCacheable(req2, config)).toBeFalsy();
     });
 
-    it('模式匹配 (MatchPatterns): ["*", "!sid"] 应要求存在非 sid 的 Cookie', async () => {
+    it('模式匹配 (MatchPatterns): ["*", "!sid"] 在门控阶段应忽略否定项 (宽松匹配)', async () => {
       const config: ProxySiteConfig = {
         rules: [{ cookies: ['*', '!sid'] }]
       };
-
-      // 只有 sid -> 拦截
+      
+      // 只有 sid -> 在以前版本会拦截，现在由于数组模式忽略否定项，应该通过
       const req1 = new Request('https://api.com/', { headers: { 'cookie': 'sid=123' } });
-      expect(await isCacheable(req1, config)).toBeFalsy();
-
+      expect(await isCacheable(req1, config)).toBeTruthy();
+      
       // 有 sid 和 lang -> 通过
       const req2 = new Request('https://api.com/', { headers: { 'cookie': 'sid=123; lang=zh' } });
       expect(await isCacheable(req2, config)).toBeTruthy();
-
-      // 无 Cookie -> 拦截
+      
+      // 无 Cookie -> 拦截 (因为至少需要一个满足 "*" 的 key)
       const req3 = new Request('https://api.com/');
       expect(await isCacheable(req3, config)).toBeFalsy();
     });

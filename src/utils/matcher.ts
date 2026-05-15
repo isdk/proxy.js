@@ -122,13 +122,21 @@ export function matchField(
     }
     return true;
   } else {
-    // MatchPatterns 模式: 执行 Key 门控 (只要存在匹配模式的 Key 即通过)
+    // MatchPatterns 模式: 执行 Key 门控
     const keys = (source instanceof URLSearchParams || source instanceof Headers)
       ? Array.from((source as any).keys())
       : Object.keys(source);
 
     if (keys.length === 0) return defaultAllowed;
 
-    return (keys as string[]).some(key => isMatch(config as ProxyMatchPatterns, key, { ignoreNegative }));
+    const isArray = Array.isArray(config);
+
+    if (isArray) {
+      // 数组模式: 宽松匹配 (只要有一个满足正向匹配即可，忽略否定项)
+      return (keys as string[]).some(key => isMatch(config as ProxyMatchPatterns, key, { ignoreNegative: true }));
+    } else {
+      // 非数组模式 (Scalar/RegExp): 严格匹配 (所有 Key 都必须满足该断言)
+      return (keys as string[]).every(key => isMatch(config as ProxyMatchPatterns, key));
+    }
   }
 }
