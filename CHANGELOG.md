@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.0](https://github.com/isdk/proxy.js/compare/v0.3.0...v0.4.0) (2026-05-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* ProxyCacheRule interface extended with response field
+
+### Features
+
+* add response-side cache validation and WAF protection ([7b2df52](https://github.com/isdk/proxy.js/commit/7b2df52b43518b7192e449f2adb163050dc4ae57))
+* **cache:** implement strict scalar vs lenient array matching for gatekeeping ([1726014](https://github.com/isdk/proxy.js/commit/1726014d6e40c156f4ad35fd0b5f410eadc614d7))
+* implement isdkProxy runtime config and refine body gatekeeping vs fingerprinting logic ([9e8c24a](https://github.com/isdk/proxy.js/commit/9e8c24af90cea64ca1fc78d12524edb6fa85ef15))
+* **SmartCache:** 新增 init/free 方法，初始化和释放内存资源避免泄露 ([476afaf](https://github.com/isdk/proxy.js/commit/476afafc07bb6534b0df9566cfda14df84bac513))
+
+
+### Bug Fixes
+
+* ensure 403/429 are correctly identified as WAF_CHALLENGE by enhancing GENERAL_WAF_PRESET ([52a0885](https://github.com/isdk/proxy.js/commit/52a08850b90cf900cba9d0db77e621696b1b0fd0))
+
+
+### Refactor
+
+* decouple WAF presets, use positive signatures, and add management APIs ([ffa3ac4](https://github.com/isdk/proxy.js/commit/ffa3ac401578987676bdd7372085667c002de304))
+
 ## [0.3.0](https://github.com/isdk/proxy.js/compare/v0.2.1...v0.3.0) (2026-05-14)
 
 
