@@ -267,6 +267,7 @@ export async function fetchWithCache(
     if (effectiveConfig.offline) {
       return createResponse(OfflineCacheMissErrorMsg, {
         status: OfflineCacheMissErrorCode,
+        statusText: 'OFFLINE_MISS_EXCLUDED_REQUEST',
         headers: { 'x-proxy-cache': 'OFFLINE_MISS_EXCLUDED_REQUEST' },
         url: request.url
       });
@@ -306,6 +307,7 @@ export async function fetchWithCache(
     if (cachedEntry) return buildResponseFromCache(cachedEntry, 'OFFLINE_HIT');
     return createResponse(OfflineCacheMissErrorMsg, {
       status: OfflineCacheMissErrorCode,
+      statusText: 'OFFLINE_HIT',
       headers: { 'x-proxy-cache': 'OFFLINE_HIT' },
       url: request.url
     });
