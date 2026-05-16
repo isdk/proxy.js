@@ -1,6 +1,6 @@
 import { ProxyCacheRule } from '../types';
 import { isMatch, matchField } from '../utils';
-import { WAF_PRESETS } from './wafPresets';
+import { isWAFChallenge } from './wafPresets';
 
 export interface ResponseCacheCheckResult {
   cacheable: boolean;
@@ -32,106 +32,94 @@ export async function isResponseCacheable(
   const status = response.status;
   const headers = response.headers;
 
-  // 1. 基础规则集合 (使用 Set 去重，合并用户规则与 WAF 预设)
-  const rulesSet = new Set<ProxyCacheRule>();
-  if (useWafPresets) {
-    WAF_PRESETS.forEach(r => rulesSet.add(r));
+  // 1. WAF 挑战检查 (优先级最高)
+  if (useWafPresets && await isWAFChallenge(response)) {
+    return {
+      cacheable: false,
+      reason: 'waf_challenge',
+      keepOldCache: true
+    };
   }
-  rulesSet.add(rule);
 
-  const rulesToCheck = Array.from(rulesSet);
-
+  // 2. 基础规则校验 (用户定义的 rule)
   // 默认允许的状态码 (参考 RFC 7231)
   const defaultAllowedStatuses = [200, 203, 204, 206, 300, 301, 404, 405, 410, 414];
+  const rConfig = rule.response;
 
-  for (const r of rulesToCheck) {
-    const rConfig = r.response;
+  // A. 状态码校验
+  const statusesToMatch = rConfig?.statuses || defaultAllowedStatuses.map(s => s.toString());
 
-    // A. 状态码校验
-    // 如果没有配置 statuses 且是最后一条规则(用户规则)，则执行默认状态码检查
-    const statusesToMatch = rConfig?.statuses || (r === rule ? defaultAllowedStatuses.map(s => s.toString()) : undefined);
+  if (statusesToMatch && !isMatch(statusesToMatch, status.toString())) {
+    // 如果状态码不匹配，检查是否属于“已知容灾保护”状态，若是则触发容灾保护
+    const isRescueStatus =
+      status === 202 || // AWS WAF Challenge (or other pending states)
+      status === 403 || // Forbidden
+      status === 405 || // AWS WAF CAPTCHA
+      status === 428 || // Precondition Required
+      status === 429 || // Too Many Requests
+      (status >= 500 && status < 600); // Server Errors
 
-    if (statusesToMatch && !isMatch(statusesToMatch, status.toString())) {
-      // 如果状态码不匹配，检查是否属于“已知挑战/故障”状态，若是则触发容灾保护
-      const isRescueStatus =
-        status === 202 || // AWS WAF Challenge
-        status === 403 || // Forbidden / CF Block
-        status === 405 || // AWS WAF CAPTCHA
-        status === 428 || // Precondition Required (Akamai)
-        status === 429 || // Too Many Requests
-        (status >= 500 && status < 600); // Server Errors
+    return {
+      cacheable: false,
+      reason: `status_mismatch:${status}`,
+      keepOldCache: isRescueStatus
+    };
+  }
 
-      const isWafPreset = WAF_PRESETS.includes(r);
-      return {
-        cacheable: false,
-        reason: isWafPreset ? 'waf_challenge' : `status_mismatch:${status}`,
-        keepOldCache: isRescueStatus
-      };
-    }
-
-    if (!rConfig) continue;
-
+  if (rConfig) {
     // B. 响应头校验
     if (rConfig.headers && !matchField(headers, rConfig.headers, { defaultAllowed: true })) {
-      // 如果是预设规则（如 WAF 预设）导致响应头校验失败，应触发容灾保护
-      const isWafPreset = WAF_PRESETS.includes(r);
       return {
         cacheable: false,
-        reason: isWafPreset ? 'waf_challenge' : 'headers_mismatch',
-        keepOldCache: isWafPreset
+        reason: 'headers_mismatch'
       };
     }
 
-    // C. 最小长度校验
+    // C. 最小长度校验 (基于 Header)
     if (rConfig.minLength !== undefined) {
       const contentLengthHeader = headers.get('content-length');
       const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : 0;
-      // 注意：如果 Content-Length 存在且小于 minLength，则拦截
       if (contentLengthHeader && contentLength < rConfig.minLength) {
         return { cacheable: false, reason: 'too_short', keepOldCache: true };
       }
     }
-  }
 
-  // D. Body 校验
-  const contentType = headers.get('content-type') || '';
-  const isTextual = contentType.includes('text/') || contentType.includes('application/json') || contentType.includes('application/xml');
-  const bodyRules = rulesToCheck.filter(r => r.response?.body);
-  const needsBodyCheck = bodyRules.length > 0;
+    // D. Body 校验
+    if (rConfig.body) {
+      const contentType = headers.get('content-type') || '';
+      const isTextual = contentType.includes('text/') || contentType.includes('application/json') || contentType.includes('application/xml');
+      
+      if (isTextual && response.body) {
+        let text = options.bodyText;
+        if (text === undefined) {
+          try {
+            text = await response.clone().text();
+          } catch (e) {
+            return { cacheable: false, reason: 'body_read_error' };
+          }
+        }
 
-  if (isTextual && response.body) {
-    let text = options.bodyText;
-    // 如果需要 body 内容匹配，则读取 Body
-    if (text === undefined && needsBodyCheck) {
-      try {
-        text = await response.clone().text();
-      } catch (e) {
-        return { cacheable: false, reason: 'body_read_error' };
-      }
-    }
+        if (text !== undefined) {
+          const actualLength = Buffer.byteLength(text);
 
-    const actualLength = text !== undefined ? Buffer.byteLength(text) : undefined;
+          // C2. 长度二次校验 (仅在已有 text 的情况下进行更精准的校验)
+          if (rConfig.minLength !== undefined && actualLength < rConfig.minLength) {
+            return { cacheable: false, reason: 'too_short', keepOldCache: true };
+          }
 
-    for (const r of rulesToCheck) {
-      const rConfig = r.response;
-      if (!rConfig) continue;
-
-      // C2. 长度二次校验 (仅在已有 text 的情况下进行更精准的校验)
-      if (rConfig.minLength !== undefined && actualLength !== undefined && actualLength < rConfig.minLength) {
-        return { cacheable: false, reason: 'too_short', keepOldCache: true };
-      }
-
-      // D2. 内容关键字校验
-      if (rConfig.body && text !== undefined && !isMatch(rConfig.body, text)) {
-        const isWafPreset = WAF_PRESETS.includes(r);
-        return {
-          cacheable: false,
-          reason: isWafPreset ? 'waf_challenge' : 'body_match_failed',
-          keepOldCache: true
-        };
+          // D2. 内容关键字校验
+          if (rConfig.body && !isMatch(rConfig.body, text)) {
+            return {
+              cacheable: false,
+              reason: 'body_match_failed',
+              keepOldCache: true
+            };
+          }
+        }
       }
     }
   }
+
 
   return { cacheable: true };
 }

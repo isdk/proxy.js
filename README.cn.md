@@ -142,26 +142,49 @@ const myPostFetch = createCachedFetch({
 
 ### 内置 WAF 防护
 
-`@isdk/proxy` 内置了主流 WAF 厂商的识别规则，默认开启。你可以通过 `isResponseCacheable` 的选项控制，或在规则中引入：
+`@isdk/proxy` 内置了主流 WAF 厂商（如 Cloudflare, AWS WAF）的识别规则，默认开启。这些规则被定义为 **正向特征签名**（Positive Signatures），即只要响应命中其中任何一个特征（状态码、Header 或 Body 关键字），就会被判定为人机挑战页面。
+
+你可以通过以下 API 动态管理 WAF 预设：
 
 ```typescript
-import { CLOUDFLARE_WAF_PRESET, AWS_WAF_PRESET, isWAFChallenge } from '@isdk/proxy';
+import { 
+  registerWAFPreset, 
+  unregisterWAFPreset, 
+  isWAFChallenge,
+  CLOUDFLARE_WAF_PRESET 
+} from '@isdk/proxy';
 
-// 场景 A：声明式拦截（在配置规则中自动屏蔽挑战页）
-const config = {
-  rules: [
-    { 
-      path: '/api/**', 
-      ...CLOUDFLARE_WAF_PRESET // 针对特定路径应用 CF 验证
-    }
-  ]
-}
+// 1. 注册自定义 WAF 签名
+registerWAFPreset({
+  response: {
+    statuses: ['418'],
+    body: ['*I am a teapot*']
+  }
+});
 
-// 场景 B：编程式判定（在业务逻辑中主动识别）
+// 2. 编程式判定（在业务逻辑中主动识别）
+// 该函数会自动处理 clone()，不会消耗原始响应流
 if (await isWAFChallenge(response)) {
   console.log('检测到人机挑战，需人工介入');
 }
+
+// 3. 注销特定预设
+unregisterWAFPreset(CLOUDFLARE_WAF_PRESET);
 ```
+
+#### WAF 管理 API 列表
+
+| 函数 | 说明 |
+| :--- | :--- |
+| `isWAFChallenge(res, presets?)` | 判定响应是否为 WAF 挑战。支持传入自定义预设列表。 |
+| `getWAFPresets()` | 获取当前所有已注册的 WAF 预设规则。 |
+| `registerWAFPreset(rule)` | 注册一个新的 WAF 签名规则。 |
+| `unregisterWAFPreset(rule)` | 注销一个已存在的规则。 |
+| `clearWAFPresets()` | 清空所有 WAF 预设。 |
+
+> [!NOTE]
+> `fetchWithCache` 在处理响应时会自动调用 `isWAFChallenge`。如果判定为 WAF 挑战且本地存在旧缓存，将自动触发 `STALE_RESCUE_WAF_CHALLENGE` 容灾保护，确保不被“脏数据”覆盖。
+
 
 ### `ProxyCacheRule` 规则对象
 

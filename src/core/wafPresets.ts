@@ -1,80 +1,139 @@
 import { ProxyCacheRule } from '../types';
-import { isResponseCacheable } from './isResponseCacheable';
+import { isMatch, matchField } from '../utils';
 
 /**
- * Cloudflare specific WAF Challenge detection.
+ * Cloudflare specific WAF Challenge detection signatures.
  */
 export const CLOUDFLARE_WAF_PRESET: ProxyCacheRule = {
   response: {
+    statuses: ['403', '429', '503'],
     body: [
-      '!*<title>Just a moment...</title>*',
-      '!*__cf_chl_opt*',
-      '!*cf-browser-verification*',
-      '!*cf-ray*'
+      '*<title>Just a moment...</title>*',
+      '*__cf_chl_opt*',
+      '*cf-browser-verification*',
+      '*cf-ray*'
     ],
     headers: {
-      'cf-mitigated': false
+      'cf-mitigated': true
     }
   }
 };
 
 /**
- * AWS WAF specific Challenge/CAPTCHA detection.
+ * AWS WAF specific Challenge/CAPTCHA detection signatures.
  */
 export const AWS_WAF_PRESET: ProxyCacheRule = {
   response: {
-    statuses: ['!202', '!405'],
+    statuses: ['202', '405'],
     headers: {
-      'x-amzn-waf-action': false
+      'x-amzn-waf-action': true
     }
   }
 };
 
 /**
- * General/Common WAF and Bot detection keywords.
+ * General/Common WAF and Bot detection signatures.
  */
 export const GENERAL_WAF_PRESET: ProxyCacheRule = {
   response: {
-    statuses: ['!403', '!429'],
+    statuses: ['403', '429'],
     body: [
-      '!*captcha-delivery.com*',
-      '!*g-recaptcha*',
-      '!*h-captcha*',
-      '!*verify you are human*',
-      '!*security check to access*',
-      '!*bot detection*',
-      '!*interstitial*'
+      '*captcha-delivery.com*',
+      '*g-recaptcha*',
+      '*h-captcha*',
+      '*verify you are human*',
+      '*security check to access*',
+      '*bot detection*',
+      '*interstitial*'
     ]
   }
 };
 
 /**
- * All built-in WAF presets combined.
- * @description Use this for one-stop protection.
+ * Internal registry of WAF presets.
  */
-export const WAF_PRESETS: ProxyCacheRule[] = [
+const _WAF_PRESETS: Set<ProxyCacheRule> = new Set([
   CLOUDFLARE_WAF_PRESET,
   AWS_WAF_PRESET,
   GENERAL_WAF_PRESET
-];
+]);
+
+/**
+ * Get all current WAF presets.
+ */
+export function getWAFPresets(): ProxyCacheRule[] {
+  return Array.from(_WAF_PRESETS);
+}
+
+/**
+ * Register a new WAF preset.
+ * @param preset The WAF signature to detect.
+ */
+export function registerWAFPreset(preset: ProxyCacheRule): void {
+  _WAF_PRESETS.add(preset);
+}
+
+/**
+ * Unregister a WAF preset.
+ * @param preset The WAF signature to remove.
+ */
+export function unregisterWAFPreset(preset: ProxyCacheRule): void {
+  _WAF_PRESETS.delete(preset);
+}
+
+/**
+ * Clear all registered WAF presets.
+ */
+export function clearWAFPresets(): void {
+  _WAF_PRESETS.clear();
+}
 
 /**
  * 高度可复用的简单好使的 WAF 挑战判定函数
  * 
  * @param response Web 标准 Response 对象
- * @param rules 自定义规则，默认使用内置所有 WAF 预设
+ * @param presets 自定义规则，默认使用内置所有已注册的 WAF 预设
  * @returns 是否为人机挑战页面
  */
 export async function isWAFChallenge(
   response: Response, 
-  rules: ProxyCacheRule[] = WAF_PRESETS
+  presets: ProxyCacheRule[] = getWAFPresets()
 ): Promise<boolean> {
-  // 利用现有的校验逻辑，判断该响应是否因为命中 WAF 规则而被判定为“不可缓存”
-  for (const rule of rules) {
-    const result = await isResponseCacheable(response.clone(), rule, { useWafPresets: false });
-    if (!result.cacheable && result.keepOldCache) {
+  const status = response.status.toString();
+  const headers = response.headers;
+  let bodyText: string | undefined;
+
+  for (const preset of presets) {
+    const config = preset.response;
+    if (!config) continue;
+
+    // 只要命中任何一个特征 (Status, Headers, 或 Body) 即视为命中该 Preset
+    
+    // 1. 状态码匹配
+    if (config.statuses && isMatch(config.statuses, status)) {
       return true;
     }
+
+    // 2. 响应头匹配
+    if (config.headers && matchField(headers, config.headers)) {
+      return true;
+    }
+
+    // 3. 响应体内容匹配
+    if (config.body) {
+      if (bodyText === undefined) {
+        try {
+          bodyText = await response.clone().text();
+        } catch (e) {
+          // 读取失败忽略
+        }
+      }
+      if (bodyText !== undefined && isMatch(config.body, bodyText)) {
+        return true;
+      }
+    }
   }
+
   return false;
 }
+

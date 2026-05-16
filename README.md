@@ -142,26 +142,49 @@ For complex bodies, `@isdk/proxy` supports a clean separation of concerns:
 
 ### Built-in WAF Protection
 
-`@isdk/proxy` includes识别主流 WAF 厂商的内置识别规则. It's enabled by default via `isResponseCacheable` options. You can also import specific presets:
+`@isdk/proxy` includes built-in detection rules for major WAF providers (e.g., Cloudflare, AWS WAF), enabled by default. These rules are defined as **Positive Signatures**, meaning if a response matches *any* of the defined features (status code, header, or body keyword), it's identified as a WAF challenge.
+
+You can dynamically manage WAF presets via the following APIs:
 
 ```typescript
-import { CLOUDFLARE_WAF_PRESET, AWS_WAF_PRESET, isWAFChallenge } from '@isdk/proxy';
+import { 
+  registerWAFPreset, 
+  unregisterWAFPreset, 
+  isWAFChallenge,
+  CLOUDFLARE_WAF_PRESET 
+} from '@isdk/proxy';
 
-// Scenario A: Declarative Interception (Auto-filter via rules)
-const config = {
-  rules: [
-    { 
-      path: '/api/**', 
-      ...CLOUDFLARE_WAF_PRESET // Apply CF validation to specific paths
-    }
-  ]
-}
+// 1. Register a custom WAF signature
+registerWAFPreset({
+  response: {
+    statuses: ['418'],
+    body: ['*I am a teapot*']
+  }
+});
 
-// Scenario B: Programmatic Detection (Manual check in code)
+// 2. Programmatic Detection (Manual check in code)
+// This function automatically handles clone(), so it won't consume the original stream
 if (await isWAFChallenge(response)) {
   console.log('WAF Challenge detected, intervention required');
 }
+
+// 3. Unregister a specific preset
+unregisterWAFPreset(CLOUDFLARE_WAF_PRESET);
 ```
+
+#### WAF Management API Reference
+
+| Function | Description |
+| :--- | :--- |
+| `isWAFChallenge(res, presets?)` | Determines if a response is a WAF challenge. Supports optional custom presets. |
+| `getWAFPresets()` | Retrieves all currently registered WAF preset rules. |
+| `registerWAFPreset(rule)` | Registers a new WAF signature rule. |
+| `unregisterWAFPreset(rule)` | Unregisters an existing rule. |
+| `clearWAFPresets()` | Clears all registered WAF presets. |
+
+> [!NOTE]
+> `fetchWithCache` automatically calls `isWAFChallenge` when processing responses. If a WAF challenge is detected and a valid old cache exists, it triggers `STALE_RESCUE_WAF_CHALLENGE` to prevent your clean data from being overwritten by "dirty" data.
+
 
 ### MatchPatterns Syntax
 
