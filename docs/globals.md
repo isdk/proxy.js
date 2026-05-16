@@ -11,6 +11,7 @@
 
 ## Interfaces
 
+- [CacheAnalysis](interfaces/CacheAnalysis.md)
 - [FetchWithCacheContext](interfaces/FetchWithCacheContext.md)
 - [FetchWithCacheOptions](interfaces/FetchWithCacheOptions.md)
 - [PrefetchOptions](interfaces/PrefetchOptions.md)
@@ -22,6 +23,7 @@
 - [ProxyCacheRule](interfaces/ProxyCacheRule.md)
 - [ProxyConfig](interfaces/ProxyConfig.md)
 - [ProxySiteConfig](interfaces/ProxySiteConfig.md)
+- [ResponseCacheCheckResult](interfaces/ResponseCacheCheckResult.md)
 - [SmartCacheOptions](interfaces/SmartCacheOptions.md)
 
 ## Type Aliases
@@ -32,11 +34,15 @@
 
 ## Variables
 
+- [AWS\_WAF\_PRESET](variables/AWS_WAF_PRESET.md)
+- [CLOUDFLARE\_WAF\_PRESET](variables/CLOUDFLARE_WAF_PRESET.md)
+- [GENERAL\_WAF\_PRESET](variables/GENERAL_WAF_PRESET.md)
 - [OfflineCacheMissErrorCode](variables/OfflineCacheMissErrorCode.md)
 - [OfflineCacheMissErrorMsg](variables/OfflineCacheMissErrorMsg.md)
 
 ## Functions
 
+- [clearWAFPresets](functions/clearWAFPresets.md)
 - [createCachedFetch](functions/createCachedFetch.md)
 - [createFetchWithCache](functions/createFetchWithCache.md)
 - [createResponse](functions/createResponse.md)
@@ -48,9 +54,15 @@
 - [getEffectiveConfigFromRequest](functions/getEffectiveConfigFromRequest.md)
 - [getMatchedRule](functions/getMatchedRule.md)
 - [getSiteConfig](functions/getSiteConfig.md)
+- [getWAFPresets](functions/getWAFPresets.md)
 - [isAllowed](functions/isAllowed.md)
 - [isCacheable](functions/isCacheable.md)
 - [isGlob](functions/isGlob.md)
 - [isMatch](functions/isMatch.md)
+- [isResponseCacheable](functions/isResponseCacheable.md)
+- [isWAFChallenge](functions/isWAFChallenge.md)
+- [matchField](functions/matchField.md)
 - [normalizeBodyConfig](functions/normalizeBodyConfig.md)
 - [prefetch](functions/prefetch.md)
+- [registerWAFPreset](functions/registerWAFPreset.md)
+- [unregisterWAFPreset](functions/unregisterWAFPreset.md)

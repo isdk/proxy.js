@@ -8,7 +8,7 @@
 
 > **fetchWithCache**(`request`, `fetcher`, `options`): `Promise`\<`Response`\>
 
-Defined in: [packages/proxy/src/core/fetchWithCache.ts:233](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/core/fetchWithCache.ts#L233)
+Defined in: [packages/proxy/src/core/fetchWithCache.ts:245](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/core/fetchWithCache.ts#L245)
 
 核心协调函数：协调请求、缓存命中、并发控制和 SWR
 

@@ -6,7 +6,7 @@
 
 # Interface: ProxyBodyConfig
 
-Defined in: [packages/proxy/src/types.ts:29](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L29)
+Defined in: [packages/proxy/src/types.ts:29](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/types.ts#L29)
 
 Special configuration for Request/Response Body.
 请求体/响应体专项配置。
@@ -15,12 +15,13 @@ Special configuration for Request/Response Body.
 
 ### extract?
 
-> `optional` **extract**: `string` \| `RegExp`
+> `optional` **extract**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md) \| [`ProxyFieldConfig`](../type-aliases/ProxyFieldConfig.md)
 
-Defined in: [packages/proxy/src/types.ts:44](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L44)
+Defined in: [packages/proxy/src/types.ts:46](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/types.ts#L46)
 
-Regex for extracting data from non-JSON (text) bodies.
-用于非 JSON (文本) Body 的提取正则表达式。
+Data extraction rules (used for Fingerprinting).
+Supports JSON field filtering or Regex for text bodies.
+数据提取规则（用于指纹提取）。支持 JSON 字段过滤或针对文本 Body 的正则提取。
 
 ***
 
@@ -28,10 +29,11 @@ Regex for extracting data from non-JSON (text) bodies.
 
 > `optional` **match**: [`ProxyMatchPatterns`](../type-aliases/ProxyMatchPatterns.md) \| [`ProxyFieldConfig`](../type-aliases/ProxyFieldConfig.md)
 
-Defined in: [packages/proxy/src/types.ts:39](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L39)
+Defined in: [packages/proxy/src/types.ts:40](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/types.ts#L40)
 
-Field-level matching and extraction for JSON bodies.
-针对 JSON Body 的字段级匹配与提取。
+Body matching rules (used for Gatekeeping).
+Supports JSON field-level matching or string/regex matching for text bodies.
+Body 匹配规则（用于门控）。支持针对 JSON 的字段级匹配，或针对文本 Body 的字符串/正则匹配。
 
 ***
 
@@ -39,7 +41,7 @@ Field-level matching and extraction for JSON bodies.
 
 > `optional` **maxLength**: `number`
 
-Defined in: [packages/proxy/src/types.ts:54](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L54)
+Defined in: [packages/proxy/src/types.ts:56](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/types.ts#L56)
 
 Maximum length limit when matching/extracting Body, default is 1024 (1KB).
 用于正则匹配/提取 Body 时的最大长度限制，默认 1024 (1KB)。
@@ -50,7 +52,7 @@ Maximum length limit when matching/extracting Body, default is 1024 (1KB).
 
 > `optional` **sort**: `boolean`
 
-Defined in: [packages/proxy/src/types.ts:49](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L49)
+Defined in: [packages/proxy/src/types.ts:51](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/types.ts#L51)
 
 Whether to sort extracted JSON keys or regex capture groups to ensure fingerprint consistency.
 是否对提取出的内容或 JSON 键进行排序，以确保指纹一致性。
@@ -61,7 +63,7 @@ Whether to sort extracted JSON keys or regex capture groups to ensure fingerprin
 
 > `optional` **type**: `"json"` \| `"text"` \| `"binary"`
 
-Defined in: [packages/proxy/src/types.ts:34](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/types.ts#L34)
+Defined in: [packages/proxy/src/types.ts:34](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/types.ts#L34)
 
 Body type. If not specified, automatically determined by Content-Type.
 Body 类型。不指定时根据 Content-Type 自动判断。

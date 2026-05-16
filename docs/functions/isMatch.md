@@ -6,9 +6,9 @@
 
 # Function: isMatch()
 
-> **isMatch**(`pattern`, `value`, `usePrefix`, `defaultIfNoPositives`, `ignoreCase`): `boolean`
+> **isMatch**(`pattern`, `value`, `usePrefix`): `boolean`
 
-Defined in: [packages/proxy/src/utils/matcher.ts:29](https://github.com/isdk/proxy.js/blob/ca0753e2e2dcac65190c537ce1634a27f5ee2158/src/utils/matcher.ts#L29)
+Defined in: [packages/proxy/src/utils/matcher.ts:30](https://github.com/isdk/proxy.js/blob/f5a749970f69b68943b2d54ecd2dc1b566c7b859/src/utils/matcher.ts#L30)
 
 Universal matching function with advanced logic.
 通用匹配函数。
@@ -26,7 +26,7 @@ Logic Priority (优先级):
 
 Matching pattern (RegExp, string, or Array)
 
-`string` | `RegExp` | (`string` \| `RegExp`)[]
+`string` | `number` | `RegExp` | (`string` \| `number` \| `RegExp`)[]
 
 ### value
 
@@ -36,21 +36,23 @@ Value to test
 
 ### usePrefix
 
-`boolean` = `false`
-
 Whether to use prefix matching for simple strings (default: false)
 
-### defaultIfNoPositives
+#### defaultIfNoPositives?
 
 `boolean` = `true`
 
-Return value when only negatives are provided and none match (default: true)
-
-### ignoreCase
+#### ignoreCase?
 
 `boolean` = `true`
 
-Whether to perform case-insensitive matching (default: true)
+#### ignoreNegative?
+
+`boolean`
+
+#### usePrefix?
+
+`boolean` = `false`
 
 ## Returns
 
