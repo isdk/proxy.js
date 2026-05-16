@@ -90,13 +90,13 @@ export function clearWAFPresets(): void {
 
 /**
  * 高度可复用的简单好使的 WAF 挑战判定函数
- * 
+ *
  * @param response Web 标准 Response 对象
  * @param presets 自定义规则，默认使用内置所有已注册的 WAF 预设
  * @returns 是否为人机挑战页面
  */
 export async function isWAFChallenge(
-  response: Response, 
+  response: Response,
   presets: ProxyCacheRule[] = getWAFPresets()
 ): Promise<boolean> {
   const status = response.status.toString();
@@ -108,7 +108,7 @@ export async function isWAFChallenge(
     if (!config) continue;
 
     // 只要命中任何一个特征 (Status, Headers, 或 Body) 即视为命中该 Preset
-    
+
     // 1. 状态码匹配
     if (config.statuses && isMatch(config.statuses, status)) {
       return true;
