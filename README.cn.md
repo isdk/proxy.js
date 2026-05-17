@@ -373,6 +373,37 @@ const myGlobalFetch = createCachedFetch({
 - **`options`**: 与 `createCachedFetch` 共享相同的配置选项（`cache`、`config`、`backgroundUpdate` 等）。如果不传 `config`，同样进入零配置模式。
 - **`options.activeCacheWrites`**: 必须由**外部传入**的一个 `Map<string, Promise<void>>`，用于在多个并发的 `fetchWithCache` 调用间共享锁状态，以实现请求合并。如果你不想自己维护它，请使用 `createCachedFetch` 或 `createFetchWithCache`。
 
+#### Fetcher `this` 上下文
+
+`fetcher` 函数会通过 **`this`** 绑定接收一个包含缓存相关信息的上下文。这对于需要在对请求进行处理（如第三方扩展、日志记录、请求转换等）后再发起真实网络请求的场景非常有用：
+
+```typescript
+const response = await fetchWithCache(request, function(req) {
+  // 通过 `this` 访问缓存上下文
+  console.log('缓存键:', this.cacheKey);
+  console.log('生效配置:', this.config);
+  console.log('原始请求:', this.request);
+
+  // 第三方扩展可以利用这些信息：
+  // - 根据配置添加自定义 Header
+  // - 记录请求日志用于调试
+  // - 在发送前转换请求
+
+  return originalFetch(req); // 调用真正的 fetch
+}, options);
+```
+
+> [!NOTE]
+> 使用常规 `function`（而非箭头函数）来访问 `this` 上下文。箭头函数的 `this` 是词法绑定的，无法访问缓存上下文。
+
+**可用的 `this` 属性：**
+
+| 属性 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `cacheKey` | `string` | 本次请求生成的缓存键 |
+| `config` | `ProxyCacheRule` | 合并后的生效缓存配置 |
+| `request` | `Request` | 原始请求对象 |
+
 ### `SmartCache`
 
 管理多级混合存储的核心引擎。

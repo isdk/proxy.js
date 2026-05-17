@@ -143,7 +143,7 @@ async function executeFetchAndCache(ctx: FetchWithCacheContext, fallbackEntry?: 
   ctx.activeCacheWrites.set(ctx.cacheKey, writePromise);
 
   try {
-    const response = await ctx.fetcher(ctx.request.clone());
+    const response = await ctx.fetcher.call(ctx, ctx.request.clone());
     const responseHeaders = new Headers(response.headers);
 
     // 1. 响应侧校验 (WAF 识别、脏数据拦截)

@@ -347,6 +347,37 @@ The low-level core coordination function. It also supports the same Zero-Config 
 - **`fetcher`**: Origin request callback `(req: Request) => Promise<Response>`.
 - **`options`**: Shares the same configuration options with `createCachedFetch` (`cache`, `config`, `backgroundUpdate`, etc.). If `config` is omitted, it enters Zero-Config mode.
 
+#### Fetcher `this` Context
+
+The `fetcher` function receives a **`this` context** containing cache-related information. This is useful for third-party extensions that need to inspect or modify requests before passing them to the actual fetch:
+
+```typescript
+const response = await fetchWithCache(request, function(req) {
+  // Access cache context via `this`
+  console.log('Cache key:', this.cacheKey);
+  console.log('Effective config:', this.config);
+  console.log('Original request:', this.request);
+
+  // Third-party hook can use this info to:
+  // - Add headers based on config
+  // - Log for debugging
+  // - Transform request before sending
+
+  return originalFetch(req); // Call the real fetch
+}, options);
+```
+
+> [!NOTE]
+> Use a regular `function` (not an arrow function) to access the `this` context. Arrow functions lexically bind `this` and won't have access to the cache context.
+
+**Available `this` properties:**
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `cacheKey` | `string` | The generated cache key for this request |
+| `config` | `ProxyCacheRule` | The effective merged cache configuration |
+| `request` | `Request` | The original request object |
+
 ---
 
 ### `SmartCache`
