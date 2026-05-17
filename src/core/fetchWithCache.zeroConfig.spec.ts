@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { SmartCache, fetchWithCache } from './index';
-import { ProxyConfig } from '../types';
+import { ProxyConfig, ProxyCacheRule } from '../types';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -49,7 +49,7 @@ describe('fetchWithCache Zero Config & Site Mapping', () => {
 
   it('应该支持传入全局 ProxyConfig 并自动匹配站点 (Site Mapping)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('site-mapping');
-    
+
     const globalConfig: ProxyConfig = {
       sites: {
         'api.a.com': { forceCache: true }, // A 站点强制缓存
@@ -82,7 +82,7 @@ describe('fetchWithCache Zero Config & Site Mapping', () => {
 
   it('全局 ProxyConfig 中的顶级规则应该应用于所有站点 (Global Rules)', async () => {
     const { cache, activeCacheWrites } = await createTestCache('global-rules');
-    
+
     const globalConfig: ProxyConfig = {
       forceCache: true, // 全局强制缓存
       sites: {
@@ -109,5 +109,53 @@ describe('fetchWithCache Zero Config & Site Mapping', () => {
     await Promise.all(activeCacheWrites.values());
     const resS2 = await fetchWithCache(reqSpecial, mockFetcher, { cache, config: globalConfig, activeCacheWrites });
     expect(resS2.headers.get('x-proxy-cache')).toBe('MISS_UNSTORABLE');
+  });
+
+  it('fetcher 应该能通过 this 访问缓存上下文 (cacheKey, config, request)', async () => {
+    const { cache, activeCacheWrites } = await createTestCache('fetcher-this-context');
+    const request = new Request('https://api.example.com/data?id=123');
+
+    // 使用常规 function 捕获 this 上下文
+    let capturedContext: { cacheKey?: string; config?: ProxyCacheRule; request?: Request } = {};
+    const mockFetcher = vi.fn().mockImplementation(async function(this: any, req) {
+      // 通过 this 访问缓存上下文
+      capturedContext.cacheKey = this.cacheKey;
+      capturedContext.config = this.config;
+      capturedContext.request = this.request;
+      return new Response('hello', {
+        headers: { 'Cache-Control': 'public, max-age=3600' }
+      });
+    });
+
+    // 传入 config 确保 effectiveConfig 存在
+    await fetchWithCache(request, mockFetcher, { cache, activeCacheWrites, config: { forceCache: true } });
+    await Promise.all(activeCacheWrites.values());
+
+    // 验证 this 上下文被正确传递
+    expect(capturedContext.cacheKey).toBeDefined();
+    expect(typeof capturedContext.cacheKey).toBe('string');
+    expect(capturedContext.cacheKey!.length).toBeGreaterThan(0);
+    expect(capturedContext.config).toBeDefined();
+    expect(capturedContext.request).toBe(request);
+  });
+
+  it('箭头函数 fetcher 中的 this 应该指向 globalThis 而非 ctx', async () => {
+    const { cache, activeCacheWrites } = await createTestCache('fetcher-arrow-context');
+    const request = new Request('https://api.example.com/data');
+
+    // 箭头函数捕获外部 this，这里捕获 globalThis
+    let outerThis: any;
+    const mockFetcher = async (req: Request) => {
+      // 箭头函数会使用外层的 this（词法绑定）
+      outerThis = this as any;
+      return new Response('hello', {
+        headers: { 'Cache-Control': 'public, max-age=3600' }
+      });
+    }
+
+    await fetchWithCache(request, mockFetcher, { cache, activeCacheWrites, config: { forceCache: true } });
+
+    // outerThis 应该保持原值，说明箭头函数没有访问到 ctx 的 this
+    expect(outerThis).toEqual(this);
   });
 });
