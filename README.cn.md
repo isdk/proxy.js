@@ -99,6 +99,7 @@ const myPostFetch = createCachedFetch({
 | `staleIfError`| `boolean` | 网络请求失败时，是否强制返回本地过期的旧缓存。 |
 | `forceCache` | `boolean` | 是否无视源站指令强制执行缓存。 |
 | `offline` | `boolean` | 离线模式。开启后只读缓存，若无缓存则返回状态码 `512` 的 Response (`OfflineCacheMissErrorCode`)。 |
+| `staleOnly` | `boolean` | 仅返回过期缓存，不刷新：完全跳过缓存刷新，只返回过期数据。 |
 | `response` | `ResponseConfig` | 响应侧可缓存性校验。支持状态码、Header 及 Body 内容匹配。 |
 
 ### `ResponseConfig` 响应校验
@@ -147,11 +148,11 @@ const myPostFetch = createCachedFetch({
 你可以通过以下 API 动态管理 WAF 预设：
 
 ```typescript
-import { 
-  registerWAFPreset, 
-  unregisterWAFPreset, 
+import {
+  registerWAFPreset,
+  unregisterWAFPreset,
   isWAFChallenge,
-  CLOUDFLARE_WAF_PRESET 
+  CLOUDFLARE_WAF_PRESET
 } from '@isdk/proxy';
 
 // 1. 注册自定义 WAF 签名
@@ -184,7 +185,6 @@ unregisterWAFPreset(CLOUDFLARE_WAF_PRESET);
 
 > [!NOTE]
 > `fetchWithCache` 在处理响应时会自动调用 `isWAFChallenge`。如果判定为 WAF 挑战且本地存在旧缓存，将自动触发 `STALE_RESCUE_WAF_CHALLENGE` 容灾保护，确保不被“脏数据”覆盖。
-
 
 ### `ProxyCacheRule` 规则对象
 
@@ -229,10 +229,11 @@ const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
 ```
 
 **优先级顺序**：
-1.  **`Request.isdkProxy` (运行时)** - 最顶级覆盖。
-2.  **`Matched Rule` (规则级)** - 针对特定 URL/Body 匹配出的规则。
-3.  **`Site Config` (站点级)** - 针对域名的基础配置。
-4.  **`Global Config` (全局级)** - 系统默认兜底。
+
+1. **`Request.isdkProxy` (运行时)** - 最顶级覆盖。
+2. **`Matched Rule` (规则级)** - 针对特定 URL/Body 匹配出的规则。
+3. **`Site Config` (站点级)** - 针对域名的基础配置。
+4. **`Global Config` (全局级)** - 系统默认兜底。
 
 ### 模式匹配说明 (MatchPatterns)
 
@@ -251,15 +252,15 @@ const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
 
 #### 1. 匹配模式 (MatchPatterns)
 
-*   **适用类型**：`string | RegExp | Array`
-*   **核心逻辑**：区分 **单值模式（字符串/正则）** 与 **列表模式（数组）**。
+* **适用类型**：`string | RegExp | Array`
+* **核心逻辑**：区分 **单值模式（字符串/正则）** 与 **列表模式（数组）**。
 
 | 配置形式 | 匹配规则 (拦截) | 语义说明 | 典型场景 |
 | :--- | :--- | :--- | :--- |
 | **单值 (字符串/正则)** | **严格匹配 (所有)** | 请求中**每一个**参数都必须符合要求。 | **严格排他或精确准入**。如 `!id` 彻底禁掉 id，`id` 只认 id。 |
 | **列表 (数组)** | **宽松匹配 (任一)** | 只要请求里**有一个**参数符合要求即可，且**自动忽略排除项**。 | **参数过滤**。如 `['*', '!sid']` 忽略 sid 生成缓存键，但不影响请求正常通过。 |
 
-##### 行为对照表：
+##### 行为对照表
 
 | 配置示例 | 请求是否会被拦截？ | 缓存键（指纹）里包含什么？ |
 | :--- | :--- | :--- |
@@ -273,9 +274,9 @@ const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
 
 #### 2. 对象配置模式 (Record)
 
-*   **适用类型**：`Record<string, ProxyMatchPatterns | boolean>`
-*   **核心语义**：**字段验证 (Validation)**。针对特定字段名及其值进行逻辑声明。
-*   **逻辑判定**：基于 `AND` 逻辑。
+* **适用类型**：`Record<string, ProxyMatchPatterns | boolean>`
+* **核心语义**：**字段验证 (Validation)**。针对特定字段名及其值进行逻辑声明。
+* **逻辑判定**：基于 `AND` 逻辑。
 
 | 配置示例 | 语义说明 | 无字段请求结果 |
 | :--- | :--- | :--- |
@@ -321,12 +322,35 @@ const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
 
 ## API 参考
 
+### 🚀 零配置与自动匹配
+
+`@isdk/proxy` 旨在实现即插即用的生产力，你无需复杂的配置即可开始。所有高级函数（`createCachedFetch`、`fetchWithCache`）都共享这一设计理念：
+
+```typescript
+// 零配置模式：默认按照标准 HTTP 缓存规范对 GET/HEAD 进行缓存
+const myFetch = createCachedFetch({ cache });
+
+// 自动匹配模式：传入全局配置，系统会自动根据 URL 路由到对应的站点规则
+const myGlobalFetch = createCachedFetch({
+  cache,
+  config: {
+    forceCache: true, // 全局默认开启强制缓存
+    sites: {
+      'api.example.com': { staleIfError: true }, // 针对特定域名开启容灾
+      '/v1/': { backgroundUpdate: false }        // 针对特定路径前缀关闭 SWR
+    }
+  }
+});
+```
+
 ### `createCachedFetch(options)` (强烈推荐)
 
 面向终端用户的高阶工厂函数。它会自动在内部闭包中维护并发追踪器，为你生成一个开箱即用、具备缓存击穿防护的 Fetch 实例。
 
 - **`options.cache`**: `SmartCache` 实例。
-- **`options.config`**: 全局缓存配置对象 (`ProxyConfig`)。
+- **`options.config`**: **可选**。全局缓存配置对象 (`ProxyConfig`) 或 站点级配置 (`ProxySiteConfig`)。
+  - 若不传，则进入 **“零配置模式”**：默认仅对 GET/HEAD 且符合标准 HTTP 缓存规范的请求进行缓存。
+  - 若传入包含 `sites` 的全局配置，则会自动根据请求 URL 进行 **“自动站点匹配”**。
 - **`options.backgroundUpdate`**: 是否启用后台异步更新 (SWR)。默认为 `true`。
 - **`options.onBackgroundUpdate`**: 当触发后台更新时，接收该更新 Promise 的回调。
 - **`options.activeCacheWrites`**: 可选。共享的并发追踪器 Map。
@@ -342,10 +366,11 @@ const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
 
 ### `fetchWithCache(request, fetcher, options)`
 
-底层的核心缓存协调函数。
+底层的核心缓存协调函数。它同样支持零配置与自动匹配模式：
 
 - **`request`**: Web 标准的 `Request` 对象。
 - **`fetcher`**: 发起真实网络请求的回调函数 `(req: Request) => Promise<Response>`。
+- **`options`**: 与 `createCachedFetch` 共享相同的配置选项（`cache`、`config`、`backgroundUpdate` 等）。如果不传 `config`，同样进入零配置模式。
 - **`options.activeCacheWrites`**: 必须由**外部传入**的一个 `Map<string, Promise<void>>`，用于在多个并发的 `fetchWithCache` 调用间共享锁状态，以实现请求合并。如果你不想自己维护它，请使用 `createCachedFetch` 或 `createFetchWithCache`。
 
 ### `SmartCache`

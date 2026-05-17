@@ -32,7 +32,7 @@ export interface ProxyBodyConfig {
    * Body 类型。不指定时根据 Content-Type 自动判断。
    */
   type?: 'json' | 'text' | 'binary';
-  /** 
+  /**
    * Body matching rules (used for Gatekeeping).
    * Supports JSON field-level matching or string/regex matching for text bodies.
    * Body 匹配规则（用于门控）。支持针对 JSON 的字段级匹配，或针对文本 Body 的字符串/正则匹配。
@@ -140,6 +140,16 @@ export interface ProxyCacheRule {
    * 严格离线模式：只读缓存，不发起网络请求。
    */
   offline?: boolean;
+
+  /**
+   *
+   */
+  /**
+   * Only return stale cache without any refresh.
+   * Overrides backgroundUpdate behavior to completely skip cache refresh and serve stale data only.
+   * 仅返回过期缓存，不刷新：完全跳过缓存刷新，只返回过期数据。
+   */
+  staleOnly?: boolean;
 }
 
 /**
@@ -160,7 +170,7 @@ export interface ProxySiteConfig extends ProxyCacheRule {
  * Global Interceptor Configuration.
  * 代理拦截器全局配置。
  */
-export interface ProxyConfig extends ProxyCacheRule {
+export interface ProxyConfig extends ProxySiteConfig {
   /**
    * Granular cache configuration for specific domains.
    * Key can be a hostname (example.com) or a matching pattern.

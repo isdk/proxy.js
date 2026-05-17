@@ -99,6 +99,7 @@ const myPostFetch = createCachedFetch({
 | `staleIfError`| `boolean` | Return stale cache on backend errors. |
 | `forceCache` | `boolean` | Force caching regardless of origin directives. |
 | `offline` | `boolean` | Strict offline mode: Read-only cache, returns `512` on cache miss. |
+| `staleOnly` | `boolean` | Only return stale cache without any refresh. Overrides `backgroundUpdate` to skip cache refresh entirely. |
 | `response` | `ResponseConfig` | Response-side cacheability validation. Supports status, headers, and body matching. |
 
 ### `ResponseConfig`
@@ -147,11 +148,11 @@ For complex bodies, `@isdk/proxy` supports a clean separation of concerns:
 You can dynamically manage WAF presets via the following APIs:
 
 ```typescript
-import { 
-  registerWAFPreset, 
-  unregisterWAFPreset, 
+import {
+  registerWAFPreset,
+  unregisterWAFPreset,
   isWAFChallenge,
-  CLOUDFLARE_WAF_PRESET 
+  CLOUDFLARE_WAF_PRESET
 } from '@isdk/proxy';
 
 // 1. Register a custom WAF signature
@@ -185,7 +186,6 @@ unregisterWAFPreset(CLOUDFLARE_WAF_PRESET);
 > [!NOTE]
 > `fetchWithCache` automatically calls `isWAFChallenge` when processing responses. If a WAF challenge is detected and a valid old cache exists, it triggers `STALE_RESCUE_WAF_CHALLENGE` to prevent your clean data from being overwritten by "dirty" data.
 
-
 ### MatchPatterns Syntax
 
 `@isdk/proxy` provides powerful matching capabilities with negation support:
@@ -206,15 +206,15 @@ unregisterWAFPreset(CLOUDFLARE_WAF_PRESET);
 
 #### 1. MatchPatterns Mode
 
-*   **Types**: `string | RegExp | Array`
-*   **Semantic**: Distinction between **Single Value (String/Regex)** and **List Mode (Array)**.
+* **Types**: `string | RegExp | Array`
+* **Semantic**: Distinction between **Single Value (String/Regex)** and **List Mode (Array)**.
 
 | Form | Matching Rule (Blocking) | Description | Typical Use Case |
 | :--- | :--- | :--- | :--- |
 | **Single Value (String/Regex)** | **Strict (All keys)** | **Every** key in the request must satisfy this rule. | **Strict Exclusion/Access**. e.g., `!id` strictly forbids 'id' entirely; `id` only allows requests with 'id' alone. |
 | **List Mode (Array)** | **Lenient (Any key)** | Matches if **any** key satisfies the rule; **negations are ignored** during matching. | **Parameter Filtering**. e.g., `['*', '!sid']` ignores 'sid' for the cache key without blocking the request. |
 
-##### Behavior Comparison:
+##### Behavior Comparison
 
 | Config Example | Is Request Blocked? | What's in the Cache Key? |
 | :--- | :--- | :--- |
@@ -228,9 +228,9 @@ unregisterWAFPreset(CLOUDFLARE_WAF_PRESET);
 
 #### 2. Record Mode
 
-*   **Types**: `Record<string, ProxyMatchPatterns | boolean>`
-*   **Semantic**: **Field Validation**. Logic declarations for specific keys.
-*   **Logic**: Based on `AND` logic.
+* **Types**: `Record<string, ProxyMatchPatterns | boolean>`
+* **Semantic**: **Field Validation**. Logic declarations for specific keys.
+* **Logic**: Based on `AND` logic.
 
 | Config Example | Semantic | Result for Empty Request |
 | :--- | :--- | :--- |
@@ -274,10 +274,11 @@ const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
 ```
 
 **Priority Order**:
-1.  **`Request.isdkProxy` (Runtime)** - Top-level override.
-2.  **`Matched Rule` (Rule Level)** - Specific rule matching the URL/Body.
-3.  **`Site Config` (Site Level)** - Domain-based configuration.
-4.  **`Global Config` (Global Level)** - System defaults.
+
+1. **`Request.isdkProxy` (Runtime)** - Top-level override.
+2. **`Matched Rule` (Rule Level)** - Specific rule matching the URL/Body.
+3. **`Site Config` (Site Level)** - Domain-based configuration.
+4. **`Global Config` (Global Level)** - System defaults.
 
 ---
 
@@ -296,12 +297,35 @@ const res = await fetchWithCache(req, fetcher, { cache, config: siteConfig });
 
 ## API Reference
 
+### 🚀 Zero Configuration & Auto Matching
+
+`@isdk/proxy` is designed for instant productivity. You don't need a complex configuration to get started. All high-level functions (`createCachedFetch`, `fetchWithCache`) share this design philosophy:
+
+```typescript
+// Zero-Config: Defaults to standard HTTP caching for GET/HEAD
+const myFetch = createCachedFetch({ cache });
+
+// Auto-Mapping: Pass a global config, and it resolves the correct site rules automatically
+const myGlobalFetch = createCachedFetch({
+  cache,
+  config: {
+    forceCache: true, // Global default
+    sites: {
+      'api.example.com': { staleIfError: true }, // Domain-specific
+      '/v1/': { backgroundUpdate: false }        // Prefix-specific
+    }
+  }
+});
+```
+
 ### `createCachedFetch(options)` (Recommended)
 
 A high-level factory function for end users. It automatically maintains the concurrency tracker in an internal closure and returns a production-ready Fetch instance with built-in cache stampede protection.
 
 - **`options.cache`**: A `SmartCache` instance.
-- **`options.config`**: Global configuration object (`ProxyConfig`).
+- **`options.config`**: **Optional**. Global configuration object (`ProxyConfig`) or site-specific configuration (`ProxySiteConfig`).
+  - If omitted, the engine runs in **Zero-Config** mode (GET/HEAD cacheable by default).
+  - If a global config with `sites` is provided, the engine performs **Auto Site Matching** based on the request URL.
 - **`options.backgroundUpdate`**: Whether to enable SWR (Stale-While-Revalidate). Defaults to `true`.
 - **`options.onBackgroundUpdate`**: Callback that receives the background update Promise when triggered.
 - **`options.refresh`**: **Force Refresh**. Bypasses cache reading to force an origin request. If a valid response is received, it automatically "heals" and updates the cache. Often used to "pierce" through WAF challenges.
@@ -317,14 +341,11 @@ A single-responsibility utility for isolating the `activeCacheWrites` concurrenc
 
 ### `fetchWithCache(request, fetcher, options)`
 
-The low-level core coordination function.
+The low-level core coordination function. It also supports the same Zero-Config & Auto-Matching patterns:
 
 - **`request`**: Web Standard `Request` object.
 - **`fetcher`**: Origin request callback `(req: Request) => Promise<Response>`.
-- **`options.activeCacheWrites`**: **Required**. Shared lock state Map.
-- **`options.cache`**: `SmartCache` instance.
-- **`options.config`**: `ProxySiteConfig` configuration.
-- **`options.backgroundUpdate`**: Whether to enable SWR.
+- **`options`**: Shares the same configuration options with `createCachedFetch` (`cache`, `config`, `backgroundUpdate`, etc.). If `config` is omitted, it enters Zero-Config mode.
 
 ---
 
@@ -392,7 +413,6 @@ const config = getSiteConfig('https://api.example.com/data', {
   }
 });
 ```
-
 
 #### `isAllowed(key, config, defaultAllowed?)`
 

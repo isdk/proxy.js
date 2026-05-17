@@ -10,7 +10,7 @@ import { ProxySiteConfig, ProxyCacheMetadata, ProxyCacheEntry, ProxyCacheRule } 
 import { OfflineCacheMissErrorCode, OfflineCacheMissErrorMsg } from '../errors';
 import { isCacheable } from './isCacheable';
 import { isResponseCacheable } from './isResponseCacheable';
-import { createResponse, getEffectiveConfig } from '../utils';
+import { createResponse, getEffectiveConfig, getSiteConfig } from '../utils';
 
 /**
  * fetchWithCache 选项
@@ -18,8 +18,8 @@ import { createResponse, getEffectiveConfig } from '../utils';
 export interface FetchWithCacheOptions {
   /** 混合缓存实例 */
   cache: SmartCache;
-  /** 站点级基础配置 */
-  config: ProxySiteConfig;
+  /** 站点级基础配置或全局配置 */
+  config?: ProxySiteConfig;
   /** 是否启用后台异步更新 (SWR) */
   backgroundUpdate?: boolean;
   /** 是否强制刷新缓存（跳过读取，但请求成功后会更新缓存） */
@@ -251,7 +251,8 @@ export async function fetchWithCache(
   const requestOverrides = (request as any).isdkProxy || {};
   options = defaultsDeep({}, requestOverrides, options);
 
-  const { config, cache } = options;
+  const { cache } = options;
+  const config = getSiteConfig(request.url, options.config || {});
 
   // 2. 请求分析 (门控、规则匹配、配置合并)
   const cacheabled = await isCacheable(request, config);
@@ -323,7 +324,7 @@ export async function fetchWithCache(
     }
 
     if (status === 'STALE' && options.backgroundUpdate !== false) {
-      triggerBackgroundUpdate(ctx, cachedEntry);
+      if (!effectiveConfig.staleOnly) { triggerBackgroundUpdate(ctx, cachedEntry) }
       return buildResponseFromCache(cachedEntry, 'STALE');
     }
   }
